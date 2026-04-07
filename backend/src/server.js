@@ -1,15 +1,13 @@
-﻿/* global process */
+/* global process */
 import bcrypt from 'bcryptjs';
+import cookieParser from 'cookie-parser';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import express from 'express';
 import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
-import cookieParser from 'cookie-parser';
+import './config/loadEnv.js';
 import authRoutes from './routes/auth.js';
 import supabase from './services/supabaseClient.js';
-
-dotenv.config();
 
 const app = express();
 const port = Number(process.env.PORT || 4000);
@@ -55,7 +53,7 @@ const ensureSeedDoctor = async () => {
     if (insertError) {
         console.error('Erreur creation doctor seed:', insertError.message);
     } else {
-        console.log('✓ Doctor seed creee avec succes');
+        console.log('Doctor seed cree avec succes');
     }
 };
 
@@ -74,5 +72,3 @@ app.use((_req, res) => {
 app.listen(port, () => {
     console.log(`AlloKine backend running on http://localhost:${port}`);
 });
-
-
