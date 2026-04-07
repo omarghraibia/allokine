@@ -36,7 +36,7 @@ export default function Navbar() {
         <header className="navbar">
             <div className="nav-shell">
                 <Link to="/" className="logo" onClick={closeMenu}>
-                    <img src={logoImage} alt="Logo AlloKine" className="nav-logo-img" />
+                    <img src="src/assets/logo.jpg" alt="Logo AlloKine" className="nav-logo-img" />
                     <span>
                         ALLO<span className="text-blue">KINE</span>
                     </span>

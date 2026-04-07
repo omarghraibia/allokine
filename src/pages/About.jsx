@@ -1,4 +1,4 @@
-import kineImage from '/logo-placeholder.svg';
+﻿import kineImage from '/logo-placeholder.svg';
 
 export default function About() {
     return (
@@ -9,7 +9,7 @@ export default function About() {
 
             <section className="card mt-4 about-layout">
                 <div className="about-photo-wrap">
-                    <img src={kineImage} alt="Dr. Fethi Ghraibia" className="kine-photo" loading="lazy" />
+                    <img src="src/assets/kine.png" alt="Dr. Fethi Ghraibia" className="kine-photo" loading="lazy" />
                 </div>
 
                 <div className="about-content">
