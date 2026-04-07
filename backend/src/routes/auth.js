@@ -1,6 +1,5 @@
-﻿/* global process */
+/* global process */
 import bcrypt from 'bcryptjs';
-import crypto from 'node:crypto';
 import { Router } from 'express';
 import { requireAuth } from '../middleware/auth.js';
 import supabase from '../services/supabaseClient.js';
@@ -8,6 +7,19 @@ import { signToken } from '../services/jwt.js';
 import { generateRawToken, hashToken, sendResetEmail } from '../services/mail.js';
 
 const router = Router();
+
+const validatePassword = (password) => {
+    const errors = [];
+
+    if (password.length < 8) errors.push('Le mot de passe doit contenir au moins 8 caracteres');
+    if (!/[A-Z]/.test(password)) errors.push('Le mot de passe doit contenir au moins une majuscule');
+    if (!/[0-9]/.test(password)) errors.push('Le mot de passe doit contenir au moins un chiffre');
+    if (!/[!@#$%^&*]/.test(password)) {
+        errors.push('Le mot de passe doit contenir un caractere special (!@#$%^&*)');
+    }
+
+    return errors;
+};
 
 const sanitizeUser = (user) => ({
     id: user.id,
@@ -40,13 +52,13 @@ router.post('/register', async (req, res) => {
         return res.status(400).json({ error: 'Email invalide' });
     }
 
-    if (password.length < 8) {
-        return res.status(400).json({ error: 'Mot de passe trop court (min 8)' });
+    const passwordErrors = validatePassword(password);
+    if (passwordErrors.length > 0) {
+        return res.status(400).json({ error: passwordErrors[0], errors: passwordErrors });
     }
 
     const passwordHash = await bcrypt.hash(password, 12);
 
-    // Vérifier si l'email existe déjà
     const { data: existingUser, error: checkError } = await supabase
         .from('users')
         .select('id')
@@ -57,7 +69,6 @@ router.post('/register', async (req, res) => {
         return res.status(409).json({ error: 'Email deja utilise' });
     }
 
-    // Insérer le nouvel utilisateur
     const { data: user, error } = await supabase
         .from('users')
         .insert({
@@ -85,7 +96,7 @@ router.post('/register', async (req, res) => {
 
 router.post('/login', async (req, res) => {
     const { email = '', password = '' } = req.body;
-    
+
     const { data: user, error } = await supabase
         .from('users')
         .select('*')
@@ -121,7 +132,7 @@ router.get('/me', requireAuth, (req, res) => {
 
 router.post('/forgot-password', async (req, res) => {
     const { email = '' } = req.body;
-    
+
     const { data: user } = await supabase
         .from('users')
         .select('id, email')
@@ -131,7 +142,7 @@ router.post('/forgot-password', async (req, res) => {
     if (user) {
         const rawToken = generateRawToken();
         const tokenHash = hashToken(rawToken);
-        
+
         const { error: insertError } = await supabase
             .from('reset_tokens')
             .insert({
@@ -150,12 +161,14 @@ router.post('/forgot-password', async (req, res) => {
 
 router.post('/reset-password', async (req, res) => {
     const { token = '', newPassword = '' } = req.body;
-    if (newPassword.length < 8) {
-        return res.status(400).json({ error: 'Mot de passe trop court' });
+
+    const passwordErrors = validatePassword(newPassword);
+    if (passwordErrors.length > 0) {
+        return res.status(400).json({ error: passwordErrors[0], errors: passwordErrors });
     }
 
     const tokenHash = hashToken(token);
-    
+
     const { data: saved, error: tokenError } = await supabase
         .from('reset_tokens')
         .select('user_id')
@@ -169,7 +182,6 @@ router.post('/reset-password', async (req, res) => {
 
     const passwordHash = await bcrypt.hash(newPassword, 12);
 
-    // Mettre à jour le mot de passe
     const { error: updateError } = await supabase
         .from('users')
         .update({ password_hash: passwordHash })
@@ -179,7 +191,6 @@ router.post('/reset-password', async (req, res) => {
         return res.status(500).json({ error: 'Erreur lors de la mise a jour du mot de passe' });
     }
 
-    // Supprimer le token
     await supabase
         .from('reset_tokens')
         .delete()
@@ -189,5 +200,3 @@ router.post('/reset-password', async (req, res) => {
 });
 
 export default router;
-
-

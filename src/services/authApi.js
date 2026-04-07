@@ -29,7 +29,7 @@ const fetchJson = async (url, options = {}) => {
 
 export const authApi = {
     isBackendEnabled: AUTH_MODE !== 'local',
-    isStrictBackend: AUTH_MODE === 'backend',
+    isStrictBackend: AUTH_MODE !== 'local',
 
     getMe: () => fetchJson(`${API_BASE_URL}/auth/me`, { method: 'GET' }),
     login: (payload) => fetchJson(`${API_BASE_URL}/auth/login`, { method: 'POST', body: JSON.stringify(payload) }),

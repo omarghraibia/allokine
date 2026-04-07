@@ -1,5 +1,4 @@
 /* global process */
-import bcrypt from 'bcryptjs';
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import express from 'express';
@@ -7,7 +6,6 @@ import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
 import './config/loadEnv.js';
 import authRoutes from './routes/auth.js';
-import supabase from './services/supabaseClient.js';
 
 const app = express();
 const port = Number(process.env.PORT || 4000);
@@ -29,35 +27,6 @@ app.use(
         max: 80
     })
 );
-
-const ensureSeedDoctor = async () => {
-    const { data: existingDoctor, error: selectError } = await supabase
-        .from('users')
-        .select('id')
-        .eq('role', 'docteur')
-        .single();
-
-    if (existingDoctor && !selectError) return;
-
-    const passwordHash = await bcrypt.hash('admin123', 12);
-    const { error: insertError } = await supabase
-        .from('users')
-        .insert({
-            name: 'Dr. Fethi Ghraibia',
-            email: 'omar_oumay@hotmail.com',
-            password_hash: passwordHash,
-            role: 'docteur',
-            phone: '+216 98 561 586'
-        });
-
-    if (insertError) {
-        console.error('Erreur creation doctor seed:', insertError.message);
-    } else {
-        console.log('Doctor seed cree avec succes');
-    }
-};
-
-await ensureSeedDoctor();
 
 app.get('/api/health', (_req, res) => {
     res.status(200).json({ ok: true, service: 'allokine-backend' });
