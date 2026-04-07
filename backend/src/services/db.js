@@ -2,7 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-const dbPath = path.resolve(process.cwd(), 'backend/data/db.json');
+const dbPath = path.resolve(process.cwd(), 'data/db.json');
 
 export const readDb = () => {
     try {

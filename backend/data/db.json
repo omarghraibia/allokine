@@ -1,4 +1,14 @@
-﻿{
-  "users": [],
+{
+  "users": [
+    {
+      "id": "ac24eb5f-5084-4d85-b14d-4726ea4ebf08",
+      "name": "Dr. Fethi Ghraibia",
+      "email": "omar_oumay@hotmail.com",
+      "passwordHash": "$2a$12$MGlPVAeR0nEq3jZrxh8yzeud/g4CaGy5FaEbOmlmoSLFgB3mBWni2",
+      "role": "docteur",
+      "phone": "+216 98 561 586",
+      "createdAt": "2026-04-07T19:05:16.573Z"
+    }
+  ],
   "resetTokens": []
 }

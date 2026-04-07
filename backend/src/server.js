@@ -10,7 +10,7 @@ import crypto from 'node:crypto';
 import authRoutes from './routes/auth.js';
 import { readDb, writeDb } from './services/db.js';
 
-dotenv.config({ path: 'backend/.env' });
+dotenv.config();
 
 const app = express();
 const port = Number(process.env.PORT || 4000);
