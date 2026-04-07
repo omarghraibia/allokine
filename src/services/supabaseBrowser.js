@@ -5,7 +5,7 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
 export const hasSupabaseBrowserConfig = Boolean(supabaseUrl && supabaseAnonKey);
 
-export const supabaseBrowser = hasSupabaseBrowserConfig
+export const supabase = hasSupabaseBrowserConfig
     ? createClient(supabaseUrl, supabaseAnonKey, {
           auth: {
               persistSession: true,
@@ -14,3 +14,5 @@ export const supabaseBrowser = hasSupabaseBrowserConfig
           }
       })
     : null;
+
+export const supabaseBrowser = supabase;

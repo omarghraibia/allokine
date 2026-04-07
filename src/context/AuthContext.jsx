@@ -32,6 +32,29 @@ export function AuthProvider({ children }) {
         hydrateFromBackend();
     }, []);
 
+    useEffect(() => {
+        const syncOAuthSession = async () => {
+            if (!authApi.isBackendEnabled || !supabaseBrowser) return;
+
+            try {
+                const { data, error } = await supabaseBrowser.auth.getSession();
+                if (error || !data.session?.access_token) return;
+
+                const { user: backendUser } = await authApi.exchangeOAuthSession({
+                    accessToken: data.session.access_token
+                });
+
+                setUser(backendUser);
+                localStorage.setItem('allokine_currentUser', JSON.stringify(backendUser));
+                setErrors([]);
+            } catch {
+                // Ignore here; explicit auth screens already surface clearer errors.
+            }
+        };
+
+        syncOAuthSession();
+    }, []);
+
     const login = async (email, password) => {
         setErrors([]);
 

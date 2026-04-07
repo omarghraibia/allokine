@@ -5,7 +5,7 @@ import { AuthContext } from '../context/AuthContext';
 import { ValidationService } from '../ValidationService';
 import { NotificationService } from '../NotificationService';
 import { useToast } from '../context/ToastContext';
-import { hasSupabaseBrowserConfig, supabaseBrowser } from '../services/supabaseBrowser';
+import { hasSupabaseBrowserConfig, supabase } from '../services/supabaseBrowser';
 
 export default function Login() {
     const [isRegisterMode, setIsRegisterMode] = useState(false);
@@ -24,7 +24,7 @@ export default function Login() {
     const [errors, setErrors] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
 
-    const { login, register, forgotPassword, resetPassword, completeOAuthLogin } = useContext(AuthContext);
+    const { login, register, forgotPassword, resetPassword } = useContext(AuthContext);
     const navigate = useNavigate();
     const { notify } = useToast();
     const [searchParams] = useSearchParams();
@@ -37,31 +37,6 @@ export default function Login() {
             setShowForgotPassword(true);
         }
     }, [urlResetToken]);
-
-    useEffect(() => {
-        const syncOAuthSession = async () => {
-            if (!supabaseBrowser) return;
-            if (!window.location.href.includes('code=') && !window.location.hash.includes('access_token')) return;
-
-            setIsLoading(true);
-            try {
-                const { data, error } = await supabaseBrowser.auth.getSession();
-                if (error || !data.session?.access_token) {
-                    throw error || new Error('Session sociale introuvable');
-                }
-
-                await completeOAuthLogin(data.session.access_token);
-                notify.success('Connexion sociale reussie');
-                navigate('/dashboard', { replace: true });
-            } catch (error) {
-                setErrors([error?.message || 'Connexion sociale impossible']);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
-        syncOAuthSession();
-    }, [completeOAuthLogin, navigate, notify]);
 
     const resetForm = () => {
         setName('');
@@ -76,24 +51,50 @@ export default function Login() {
         setErrors([]);
     };
 
-    const handleSocialLogin = async (provider) => {
+    const handleGoogleLogin = async () => {
         setErrors([]);
         setIsLoading(true);
         try {
-            if (!supabaseBrowser || !hasSupabaseBrowserConfig) {
+            if (!supabase || !hasSupabaseBrowserConfig) {
                 setErrors(['Configuration Supabase OAuth manquante']);
                 return;
             }
 
-            const { error } = await supabaseBrowser.auth.signInWithOAuth({
-                provider,
+            const { error } = await supabase.auth.signInWithOAuth({
+                provider: 'google',
                 options: {
-                    redirectTo: `${window.location.origin}/login`
+                    redirectTo: `${window.location.origin}/dashboard`
                 }
             });
 
             if (error) {
-                setErrors([error.message || `Connexion ${provider} indisponible`]);
+                console.error('Erreur de connexion :', error.message);
+                setErrors([error.message || 'Connexion google indisponible']);
+            }
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleFacebookLogin = async () => {
+        setErrors([]);
+        setIsLoading(true);
+        try {
+            if (!supabase || !hasSupabaseBrowserConfig) {
+                setErrors(['Configuration Supabase OAuth manquante']);
+                return;
+            }
+
+            const { error } = await supabase.auth.signInWithOAuth({
+                provider: 'facebook',
+                options: {
+                    redirectTo: `${window.location.origin}/dashboard`
+                }
+            });
+
+            if (error) {
+                console.error('Erreur de connexion :', error.message);
+                setErrors([error.message || 'Connexion facebook indisponible']);
             }
         } finally {
             setIsLoading(false);
@@ -216,10 +217,10 @@ export default function Login() {
 
                 {!isRegisterMode && (
                     <div className="social-auth mt-2">
-                        <button className="btn btn-social" onClick={() => handleSocialLogin('google')} type="button" disabled={isLoading}>
+                        <button className="btn btn-social" onClick={handleGoogleLogin} type="button" disabled={isLoading}>
                             <Globe size={18} /> Continuer avec Google
                         </button>
-                        <button className="btn btn-social" onClick={() => handleSocialLogin('facebook')} type="button" disabled={isLoading}>
+                        <button className="btn btn-social" onClick={handleFacebookLogin} type="button" disabled={isLoading}>
                             <Share2 size={18} /> Continuer avec Facebook
                         </button>
                     </div>
