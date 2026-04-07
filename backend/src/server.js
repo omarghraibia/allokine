@@ -5,6 +5,7 @@ import express from 'express';
 import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
 import './config/loadEnv.js';
+import appointmentRoutes from './routes/appointments.js';
 import authRoutes from './routes/auth.js';
 
 const app = express();
@@ -33,6 +34,7 @@ app.get('/api/health', (_req, res) => {
 });
 
 app.use('/api/auth', authRoutes);
+app.use('/api/appointments', appointmentRoutes);
 
 app.use((_req, res) => {
     res.status(404).json({ error: 'Route not found' });
