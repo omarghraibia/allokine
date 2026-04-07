@@ -1,7 +1,7 @@
 ﻿import { verifyToken } from '../services/jwt.js';
-import { readDb } from '../services/db.js';
+import supabase from '../services/supabaseClient.js';
 
-export const requireAuth = (req, res, next) => {
+export const requireAuth = async (req, res, next) => {
     try {
         const token = req.cookies?.allokine_token;
         if (!token) {
@@ -9,9 +9,13 @@ export const requireAuth = (req, res, next) => {
         }
 
         const payload = verifyToken(token);
-        const db = readDb();
-        const user = db.users.find((u) => u.id === payload.sub);
-        if (!user) {
+        const { data: user, error } = await supabase
+            .from('users')
+            .select('*')
+            .eq('id', payload.sub)
+            .single();
+
+        if (error || !user) {
             return res.status(401).json({ error: 'Session invalide' });
         }
 

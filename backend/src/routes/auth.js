@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs';
 import crypto from 'node:crypto';
 import { Router } from 'express';
 import { requireAuth } from '../middleware/auth.js';
-import { readDb, writeDb } from '../services/db.js';
+import supabase from '../services/supabaseClient.js';
 import { signToken } from '../services/jwt.js';
 import { generateRawToken, hashToken, sendResetEmail } from '../services/mail.js';
 
@@ -15,9 +15,9 @@ const sanitizeUser = (user) => ({
     email: user.email,
     role: user.role,
     phone: user.phone || '',
-    birthDate: user.birthDate || '',
-    emergencyContact: user.emergencyContact || '',
-    createdAt: user.createdAt
+    birthDate: user.birth_date || '',
+    emergencyContact: user.emergency_contact || '',
+    createdAt: user.created_at
 });
 
 const setAuthCookie = (res, token) => {
@@ -44,27 +44,38 @@ router.post('/register', async (req, res) => {
         return res.status(400).json({ error: 'Mot de passe trop court (min 8)' });
     }
 
-    const db = readDb();
-    const exists = db.users.some((u) => u.email.toLowerCase() === email.toLowerCase());
-    if (exists) {
+    const passwordHash = await bcrypt.hash(password, 12);
+
+    // Vérifier si l'email existe déjà
+    const { data: existingUser, error: checkError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('email', email.toLowerCase())
+        .single();
+
+    if (!checkError && existingUser) {
         return res.status(409).json({ error: 'Email deja utilise' });
     }
 
-    const passwordHash = await bcrypt.hash(password, 12);
-    const user = {
-        id: crypto.randomUUID(),
-        name: name.trim(),
-        email: email.toLowerCase(),
-        passwordHash,
-        role: 'client',
-        phone,
-        birthDate,
-        emergencyContact,
-        createdAt: new Date().toISOString()
-    };
+    // Insérer le nouvel utilisateur
+    const { data: user, error } = await supabase
+        .from('users')
+        .insert({
+            name: name.trim(),
+            email: email.toLowerCase(),
+            password_hash: passwordHash,
+            role: 'client',
+            phone,
+            birth_date: birthDate,
+            emergency_contact: emergencyContact
+        })
+        .select()
+        .single();
 
-    db.users.push(user);
-    writeDb(db);
+    if (error) {
+        console.error('Erreur inscription Supabase:', error);
+        return res.status(500).json({ error: 'Erreur lors de l\'inscription' });
+    }
 
     const token = signToken({ sub: user.id, role: user.role });
     setAuthCookie(res, token);
@@ -74,14 +85,18 @@ router.post('/register', async (req, res) => {
 
 router.post('/login', async (req, res) => {
     const { email = '', password = '' } = req.body;
-    const db = readDb();
-    const user = db.users.find((u) => u.email.toLowerCase() === String(email).toLowerCase());
+    
+    const { data: user, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('email', email.toLowerCase())
+        .single();
 
-    if (!user) {
+    if (error || !user) {
         return res.status(401).json({ error: 'Identifiants invalides' });
     }
 
-    const ok = await bcrypt.compare(password, user.passwordHash);
+    const ok = await bcrypt.compare(password, user.password_hash);
     if (!ok) {
         return res.status(401).json({ error: 'Identifiants invalides' });
     }
@@ -106,19 +121,28 @@ router.get('/me', requireAuth, (req, res) => {
 
 router.post('/forgot-password', async (req, res) => {
     const { email = '' } = req.body;
-    const db = readDb();
-    const user = db.users.find((u) => u.email.toLowerCase() === String(email).toLowerCase());
+    
+    const { data: user } = await supabase
+        .from('users')
+        .select('id, email')
+        .eq('email', email.toLowerCase())
+        .single();
 
     if (user) {
         const rawToken = generateRawToken();
         const tokenHash = hashToken(rawToken);
-        db.resetTokens.push({
-            tokenHash,
-            userId: user.id,
-            expiresAt: Date.now() + 15 * 60 * 1000
-        });
-        writeDb(db);
-        await sendResetEmail({ to: user.email, token: rawToken });
+        
+        const { error: insertError } = await supabase
+            .from('reset_tokens')
+            .insert({
+                user_id: user.id,
+                token_hash: tokenHash,
+                expires_at: Date.now() + 15 * 60 * 1000
+            });
+
+        if (!insertError) {
+            await sendResetEmail({ to: user.email, token: rawToken });
+        }
     }
 
     return res.status(200).json({ ok: true, message: 'Si le compte existe, un email a ete envoye.' });
@@ -130,21 +154,36 @@ router.post('/reset-password', async (req, res) => {
         return res.status(400).json({ error: 'Mot de passe trop court' });
     }
 
-    const db = readDb();
     const tokenHash = hashToken(token);
-    const saved = db.resetTokens.find((t) => t.tokenHash === tokenHash && t.expiresAt > Date.now());
-    if (!saved) {
+    
+    const { data: saved, error: tokenError } = await supabase
+        .from('reset_tokens')
+        .select('user_id')
+        .eq('token_hash', tokenHash)
+        .gt('expires_at', Date.now())
+        .single();
+
+    if (tokenError || !saved) {
         return res.status(400).json({ error: 'Token invalide ou expire' });
     }
 
-    const user = db.users.find((u) => u.id === saved.userId);
-    if (!user) {
-        return res.status(400).json({ error: 'Utilisateur introuvable' });
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+
+    // Mettre à jour le mot de passe
+    const { error: updateError } = await supabase
+        .from('users')
+        .update({ password_hash: passwordHash })
+        .eq('id', saved.user_id);
+
+    if (updateError) {
+        return res.status(500).json({ error: 'Erreur lors de la mise a jour du mot de passe' });
     }
 
-    user.passwordHash = await bcrypt.hash(newPassword, 12);
-    db.resetTokens = db.resetTokens.filter((t) => t.tokenHash !== tokenHash);
-    writeDb(db);
+    // Supprimer le token
+    await supabase
+        .from('reset_tokens')
+        .delete()
+        .eq('token_hash', tokenHash);
 
     return res.status(200).json({ ok: true });
 });

@@ -6,9 +6,8 @@ import express from 'express';
 import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
-import crypto from 'node:crypto';
 import authRoutes from './routes/auth.js';
-import { readDb, writeDb } from './services/db.js';
+import supabase from './services/supabaseClient.js';
 
 dotenv.config();
 
@@ -34,21 +33,30 @@ app.use(
 );
 
 const ensureSeedDoctor = async () => {
-    const db = readDb();
-    const hasDoctor = db.users.some((u) => u.role === 'docteur');
-    if (hasDoctor) return;
+    const { data: existingDoctor, error: selectError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('role', 'docteur')
+        .single();
+
+    if (existingDoctor && !selectError) return;
 
     const passwordHash = await bcrypt.hash('admin123', 12);
-    db.users.push({
-        id: crypto.randomUUID(),
-        name: 'Dr. Fethi Ghraibia',
-        email: 'omar_oumay@hotmail.com',
-        passwordHash,
-        role: 'docteur',
-        phone: '+216 98 561 586',
-        createdAt: new Date().toISOString()
-    });
-    writeDb(db);
+    const { error: insertError } = await supabase
+        .from('users')
+        .insert({
+            name: 'Dr. Fethi Ghraibia',
+            email: 'omar_oumay@hotmail.com',
+            password_hash: passwordHash,
+            role: 'docteur',
+            phone: '+216 98 561 586'
+        });
+
+    if (insertError) {
+        console.error('Erreur creation doctor seed:', insertError.message);
+    } else {
+        console.log('✓ Doctor seed creee avec succes');
+    }
 };
 
 await ensureSeedDoctor();
