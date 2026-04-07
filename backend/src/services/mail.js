@@ -20,4 +20,5 @@ export const sendResetEmail = async ({ to, token }) => {
 
     const info = await transporter.sendMail(message);
     console.log('[MAIL-SIM RESET PASSWORD]', info.message);
+    console.log('[MAIL-SIM RESET LINK]', resetLink);
 };

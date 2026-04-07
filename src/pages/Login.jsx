@@ -1,4 +1,4 @@
-﻿import { useContext, useMemo, useState } from 'react';
+﻿import { useContext, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Eye, EyeOff, Globe, Lock, Mail, Share2, UserRound } from 'lucide-react';
 import { AuthContext } from '../context/AuthContext';
@@ -30,6 +30,12 @@ export default function Login() {
 
     const urlResetToken = searchParams.get('resetToken') || '';
     const effectiveResetToken = useMemo(() => resetToken || urlResetToken, [resetToken, urlResetToken]);
+
+    useEffect(() => {
+        if (urlResetToken) {
+            setShowForgotPassword(true);
+        }
+    }, [urlResetToken]);
 
     const resetForm = () => {
         setName('');

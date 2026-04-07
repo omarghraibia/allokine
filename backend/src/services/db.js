@@ -7,7 +7,11 @@ const dbPath = path.resolve(process.cwd(), 'data/db.json');
 export const readDb = () => {
     try {
         const raw = fs.readFileSync(dbPath, 'utf-8');
-        return JSON.parse(raw);
+        const data = JSON.parse(raw);
+        return {
+            users: Array.isArray(data.users) ? data.users : [],
+            resetTokens: Array.isArray(data.resetTokens) ? data.resetTokens : []
+        };
     } catch {
         return { users: [], resetTokens: [] };
     }

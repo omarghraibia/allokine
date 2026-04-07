@@ -10,5 +10,11 @@
       "createdAt": "2026-04-07T19:05:16.573Z"
     }
   ],
-  "resetTokens": []
+  "resetTokens": [
+    {
+      "tokenHash": "667491539acdb0c3cbc55e5f0cc52f680959ab0c03d91dd875af683d0ed70ede",
+      "userId": "ac24eb5f-5084-4d85-b14d-4726ea4ebf08",
+      "expiresAt": 1775590223315
+    }
+  ]
 }
