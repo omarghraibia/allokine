@@ -1,4 +1,4 @@
-﻿{
+{
   "name": "allokine-backend",
   "version": "1.0.0",
   "private": true,
@@ -8,6 +8,7 @@
     "start": "node src/server.js"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.102.1",
     "bcryptjs": "^2.4.3",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
