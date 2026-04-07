@@ -1,10 +1,12 @@
-﻿import { useContext, useMemo, useState } from 'react';
+import { useContext, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { DataService } from '../DataService';
 import { ValidationService } from '../ValidationService';
 import { NotificationService } from '../NotificationService';
 import { useToast } from '../context/ToastContext';
+import { authApi } from '../services/authApi';
+import { appointmentsApi } from '../services/appointmentsApi';
 import { DOMICILE_FEE, formatTnd, getServiceById, SERVICES_CATALOG } from '../constants/servicesCatalog';
 
 const readFileAsDataUrl = (file) =>
@@ -41,7 +43,7 @@ export default function Rdv() {
     const selectedService = useMemo(() => getServiceById(serviceId) || SERVICES_CATALOG[0], [serviceId]);
     const finalPrice = selectedService.price + (lieu === 'domicile' ? DOMICILE_FEE : 0);
 
-    const handleDateChange = (e) => {
+    const handleDateChange = async (e) => {
         const selectedDate = e.target.value;
         setDate(selectedDate);
         if (!selectedDate) {
@@ -50,9 +52,17 @@ export default function Rdv() {
             return;
         }
 
-        const slots = DataService.getAvailableTimeSlots(selectedDate);
-        setAvailableSlots(slots);
-        setHeure('');
+        try {
+            const slots = authApi.isBackendEnabled
+                ? await appointmentsApi.getAvailableSlots(selectedDate)
+                : DataService.getAvailableTimeSlots(selectedDate);
+
+            setAvailableSlots(slots);
+            setHeure('');
+        } catch (error) {
+            notify.error(error.details || error.message || 'Impossible de charger les creneaux');
+            setAvailableSlots([]);
+        }
     };
 
     const handleFileChange = (e) => {
@@ -63,13 +73,13 @@ export default function Rdv() {
         if (!validation.isValid) {
             setErrors(validation.errors);
             setRapports(null);
-            validation.errors.forEach(err => notify.error(err));
+            validation.errors.forEach((err) => notify.error(err));
             return;
         }
 
         setRapports(file);
         setErrors([]);
-        notify.success(`✓ Fichier accepté: ${file.name}`);
+        notify.success(`Fichier accepte: ${file.name}`);
     };
 
     const preview = useMemo(
@@ -127,7 +137,7 @@ export default function Rdv() {
             validationErrors.push('Veuillez renseigner la duree des symptomes.');
         }
 
-        if (DataService.hasTimeConflict(date, heure)) {
+        if (!authApi.isBackendEnabled && DataService.hasTimeConflict(date, heure)) {
             validationErrors.push('Ce creneau est deja reserve. Choisissez une autre heure.');
         }
 
@@ -151,7 +161,7 @@ export default function Rdv() {
                 };
             }
 
-            const appointment = DataService.createAppointment({
+            const payload = {
                 patientId: user.id,
                 patientName: user.name,
                 date,
@@ -170,7 +180,11 @@ export default function Rdv() {
                     medicalBackground,
                     objective
                 }
-            });
+            };
+
+            const appointment = authApi.isBackendEnabled
+                ? await appointmentsApi.create(payload)
+                : DataService.createAppointment(payload);
 
             NotificationService.notify(
                 'success',
@@ -180,6 +194,8 @@ export default function Rdv() {
 
             resetForm();
             setTimeout(() => navigate('/dashboard'), 600);
+        } catch (error) {
+            notify.error(error.details || error.message || 'Erreur lors de la creation du rendez-vous');
         } finally {
             setIsSubmitting(false);
         }

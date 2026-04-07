@@ -1,72 +1,30 @@
-﻿export const NotificationService = {
-    sendAppointmentReminder: async (appointment, patientEmail) => {
-        return new Promise((resolve) => {
-            setTimeout(() => {
-                console.log('[GMAIL-SIM] Reminder sent', {
-                    to: patientEmail,
-                    subject: `Rappel rendez-vous ${appointment.date} ${appointment.time}`,
-                    provider: 'Google Gmail API (simulee)'
-                });
-                resolve(true);
-            }, 500);
+import { authApi } from './services/authApi';
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+
+export const NotificationService = {
+    sendAppointmentReminder: async (appointment, patientEmail, patientName = '') => {
+        await authApi.fetchJson(`${API_BASE_URL}/notifications/appointment-reminder`, {
+            method: 'POST',
+            body: JSON.stringify({
+                to: patientEmail,
+                patientName,
+                appointment: {
+                    date: appointment.date,
+                    time: appointment.time
+                }
+            })
         });
+
+        return true;
     },
 
-    sendAppointmentConfirmation: async (appointment, doctorEmail) => {
-        return new Promise((resolve) => {
-            setTimeout(() => {
-                console.log('[GMAIL-SIM] Appointment confirmation sent', {
-                    to: doctorEmail,
-                    subject: `Nouveau rendez-vous confirme #${appointment.id || 'N/A'}`,
-                    provider: 'Google Gmail API (simulee)'
-                });
-                resolve(true);
-            }, 500);
+    sendWelcomeEmailViaGmail: async () => {
+        await authApi.fetchJson(`${API_BASE_URL}/notifications/welcome`, {
+            method: 'POST'
         });
-    },
 
-    sendWelcomeEmailViaGmail: async (recipientEmail, name) => {
-        return new Promise((resolve) => {
-            setTimeout(() => {
-                console.log('[GMAIL-SIM] Welcome email sent', {
-                    to: recipientEmail,
-                    subject: 'Bienvenue sur AlloKine',
-                    htmlTemplate: 'welcome-account-template-v1',
-                    patientName: name
-                });
-                resolve(true);
-            }, 450);
-        });
-    },
-
-    connectGoogleOAuth: async () => {
-        return new Promise((resolve) => {
-            setTimeout(() => {
-                resolve({
-                    success: true,
-                    provider: 'google',
-                    user: {
-                        name: 'Patient Google',
-                        email: 'patient.google@allokine.tn'
-                    }
-                });
-            }, 600);
-        });
-    },
-
-    connectFacebookOAuth: async () => {
-        return new Promise((resolve) => {
-            setTimeout(() => {
-                resolve({
-                    success: true,
-                    provider: 'facebook',
-                    user: {
-                        name: 'Patient Facebook',
-                        email: 'patient.facebook@allokine.tn'
-                    }
-                });
-            }, 600);
-        });
+        return true;
     },
 
     notify: (type, title, message) => {

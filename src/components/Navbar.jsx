@@ -1,7 +1,6 @@
-﻿import { useContext, useEffect, useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
-import logoImage from '/logo-placeholder.svg';
 
 export default function Navbar() {
     const { user, logout } = useContext(AuthContext);

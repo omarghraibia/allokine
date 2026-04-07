@@ -1,5 +1,6 @@
 /* global process */
 import bcrypt from 'bcryptjs';
+import crypto from 'node:crypto';
 import { Router } from 'express';
 import { requireAuth } from '../middleware/auth.js';
 import supabase from '../services/supabaseClient.js';
@@ -32,13 +33,68 @@ const sanitizeUser = (user) => ({
     createdAt: user.created_at
 });
 
-const setAuthCookie = (res, token) => {
-    res.cookie('allokine_token', token, {
+const getCookieOptions = () => {
+    const sameSite = process.env.COOKIE_SAME_SITE || 'lax';
+    const secure = process.env.COOKIE_SECURE
+        ? process.env.COOKIE_SECURE === 'true'
+        : process.env.NODE_ENV === 'production' || sameSite === 'none';
+
+    return {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
+        secure,
+        sameSite,
+        domain: process.env.COOKIE_DOMAIN || undefined,
         maxAge: 7 * 24 * 60 * 60 * 1000
+    };
+};
+
+const setAuthCookie = (res, token) => {
+    res.cookie('allokine_token', token, getCookieOptions());
+};
+
+const clearAuthCookie = (res) => {
+    const cookieOptions = getCookieOptions();
+    res.clearCookie('allokine_token', {
+        httpOnly: cookieOptions.httpOnly,
+        sameSite: cookieOptions.sameSite,
+        secure: cookieOptions.secure,
+        domain: cookieOptions.domain
     });
+};
+
+const findOrCreateUserByEmail = async ({ email, name = '', phone = '', birthDate = '', emergencyContact = '' }) => {
+    const normalizedEmail = email.toLowerCase();
+
+    const { data: existingUser, error: existingError } = await supabase
+        .from('users')
+        .select('*')
+        .eq('email', normalizedEmail)
+        .single();
+
+    if (!existingError && existingUser) {
+        return existingUser;
+    }
+
+    const passwordHash = await bcrypt.hash(crypto.randomBytes(16).toString('hex'), 12);
+    const { data: createdUser, error: createError } = await supabase
+        .from('users')
+        .insert({
+            name: name.trim() || normalizedEmail.split('@')[0],
+            email: normalizedEmail,
+            password_hash: passwordHash,
+            role: 'client',
+            phone,
+            birth_date: birthDate,
+            emergency_contact: emergencyContact
+        })
+        .select()
+        .single();
+
+    if (createError) {
+        throw createError;
+    }
+
+    return createdUser;
 };
 
 router.post('/register', async (req, res) => {
@@ -117,12 +173,39 @@ router.post('/login', async (req, res) => {
     return res.status(200).json({ user: sanitizeUser(user) });
 });
 
+router.post('/oauth/exchange', async (req, res) => {
+    const { accessToken = '' } = req.body;
+    if (!accessToken) {
+        return res.status(400).json({ error: 'Access token manquant' });
+    }
+
+    const { data, error } = await supabase.auth.getUser(accessToken);
+    if (error || !data?.user?.email) {
+        return res.status(401).json({ error: 'Session OAuth invalide' });
+    }
+
+    try {
+        const providerUser = data.user;
+        const user = await findOrCreateUserByEmail({
+            email: providerUser.email,
+            name:
+                providerUser.user_metadata?.full_name ||
+                providerUser.user_metadata?.name ||
+                providerUser.email.split('@')[0]
+        });
+
+        const token = signToken({ sub: user.id, role: user.role });
+        setAuthCookie(res, token);
+
+        return res.status(200).json({ user: sanitizeUser(user) });
+    } catch (createError) {
+        console.error('Erreur OAuth exchange:', createError);
+        return res.status(500).json({ error: 'Erreur lors de la connexion sociale' });
+    }
+});
+
 router.post('/logout', (req, res) => {
-    res.clearCookie('allokine_token', {
-        httpOnly: true,
-        sameSite: 'lax',
-        secure: process.env.NODE_ENV === 'production'
-    });
+    clearAuthCookie(res);
     return res.status(200).json({ ok: true });
 });
 

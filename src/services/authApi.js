@@ -1,4 +1,4 @@
-﻿const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000/api';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 const AUTH_MODE = (import.meta.env.VITE_AUTH_MODE || 'auto').toLowerCase();
 
 const fetchJson = async (url, options = {}) => {
@@ -21,6 +21,7 @@ const fetchJson = async (url, options = {}) => {
     if (!response.ok) {
         const error = new Error(data?.error || 'Erreur API');
         error.status = response.status;
+        error.details = data?.details;
         throw error;
     }
 
@@ -37,5 +38,10 @@ export const authApi = {
     register: (payload) => fetchJson(`${API_BASE_URL}/auth/register`, { method: 'POST', body: JSON.stringify(payload) }),
     logout: () => fetchJson(`${API_BASE_URL}/auth/logout`, { method: 'POST' }),
     forgotPassword: (payload) => fetchJson(`${API_BASE_URL}/auth/forgot-password`, { method: 'POST', body: JSON.stringify(payload) }),
-    resetPassword: (payload) => fetchJson(`${API_BASE_URL}/auth/reset-password`, { method: 'POST', body: JSON.stringify(payload) })
+    resetPassword: (payload) => fetchJson(`${API_BASE_URL}/auth/reset-password`, { method: 'POST', body: JSON.stringify(payload) }),
+    exchangeOAuthSession: (payload) =>
+        fetchJson(`${API_BASE_URL}/auth/oauth/exchange`, {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        })
 };

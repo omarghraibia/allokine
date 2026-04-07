@@ -1,5 +1,3 @@
-﻿import kineImage from '/logo-placeholder.svg';
-
 export default function About() {
     return (
         <div className="container pt-top min-h-screen">

@@ -1,8 +1,9 @@
-﻿/* eslint-disable react-refresh/only-export-components */
-import { createContext, useEffect, useState } from 'react';
+/* eslint-disable react-refresh/only-export-components */
+import { createContext, useCallback, useEffect, useState } from 'react';
 import { DataService } from '../DataService';
 import { ValidationService } from '../ValidationService';
 import { authApi } from '../services/authApi';
+import { supabaseBrowser } from '../services/supabaseBrowser';
 
 export const AuthContext = createContext();
 
@@ -190,10 +191,26 @@ export function AuthProvider({ children }) {
             }
         }
 
+        if (supabaseBrowser) {
+            try {
+                await supabaseBrowser.auth.signOut();
+            } catch {
+                // ignore social logout failures
+            }
+        }
+
         setUser(null);
         localStorage.removeItem('allokine_currentUser');
         setErrors([]);
     };
+
+    const completeOAuthLogin = useCallback(async (accessToken) => {
+        const { user: backendUser } = await authApi.exchangeOAuthSession({ accessToken });
+        setUser(backendUser);
+        localStorage.setItem('allokine_currentUser', JSON.stringify(backendUser));
+        setErrors([]);
+        return { success: true, user: backendUser };
+    }, []);
 
     const getCurrentUser = () => user;
     const isAuthenticated = () => user !== null;
@@ -209,6 +226,7 @@ export function AuthProvider({ children }) {
                 forgotPassword,
                 resetPassword,
                 logout,
+                completeOAuthLogin,
                 getCurrentUser,
                 isAuthenticated,
                 hasRole

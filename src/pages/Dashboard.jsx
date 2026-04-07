@@ -1,10 +1,12 @@
-﻿import { useContext, useState } from 'react';
+import { useContext, useEffect, useMemo, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { Download, Eye, FileText, Phone, Trash2 } from 'lucide-react';
 import { AuthContext } from '../context/AuthContext';
 import { DataService } from '../DataService';
 import { NotificationService } from '../NotificationService';
 import { useToast } from '../context/ToastContext';
+import { authApi } from '../services/authApi';
+import { appointmentsApi } from '../services/appointmentsApi';
 
 const STATUS_LABELS = {
     en_attente: 'En attente',
@@ -20,7 +22,76 @@ const STATUS_BADGE_CLASS = {
     annule: 'badge-danger'
 };
 
+const EMPTY_METRICS = {
+    totalAppointments: 0,
+    pendingAppointments: 0,
+    confirmedAppointments: 0,
+    completedAppointments: 0,
+    activePatients: 0
+};
+
 const formatTnd = (value) => (typeof value === 'number' ? `${value.toFixed(3)} TND` : '-');
+
+const buildFileItemsFromAppointments = (appointments) =>
+    appointments
+        .filter((appointment) => appointment.attachedFile)
+        .map((appointment) => {
+            const fileName =
+                typeof appointment.attachedFile === 'string'
+                    ? appointment.attachedFile
+                    : appointment.attachedFile.name;
+            const extension = fileName.split('.').pop()?.toLowerCase() || 'pdf';
+            const type = extension === 'pdf' ? 'PDF' : extension.toUpperCase();
+
+            return {
+                id: `${appointment.id}-${fileName}`,
+                appointmentId: appointment.id,
+                patientId: appointment.patientId,
+                fileName,
+                type,
+                date: appointment.date,
+                secureUrl: `server://patient-${appointment.patientId}/appointment-${appointment.id}/${fileName}`,
+                size: typeof appointment.attachedFile === 'object' ? appointment.attachedFile.size || 0 : 0,
+                mimeType: typeof appointment.attachedFile === 'object' ? appointment.attachedFile.type || '' : '',
+                dataUrl: typeof appointment.attachedFile === 'object' ? appointment.attachedFile.dataUrl || '' : ''
+            };
+        });
+
+const buildPatientRecord = (appointments, patientId) => {
+    const patientAppointments = appointments.filter((appointment) => appointment.patientId === patientId);
+    if (patientAppointments.length === 0) return null;
+
+    const orderedAppointments = [...patientAppointments].sort(
+        (left, right) => new Date(`${right.date}T${right.time}`) - new Date(`${left.date}T${left.time}`)
+    );
+
+    const patient = orderedAppointments[0].patient || {
+        id: patientId,
+        name: orderedAppointments[0].patientName,
+        email: '',
+        phone: '',
+        birthDate: '',
+        emergencyContact: ''
+    };
+
+    return {
+        patient,
+        history: {
+            totalAppointments: orderedAppointments.length,
+            completedAppointments: orderedAppointments.filter((appointment) => appointment.status === 'effectue')
+                .length,
+            pendingAppointments: orderedAppointments.filter((appointment) => appointment.status === 'en_attente')
+                .length,
+            appointments: orderedAppointments
+        },
+        summary: {
+            totalNotes: orderedAppointments.reduce(
+                (sum, appointment) => sum + (appointment.notes?.length || 0),
+                0
+            )
+        }
+    };
+};
 
 export default function Dashboard() {
     const { user } = useContext(AuthContext);
@@ -31,59 +102,150 @@ export default function Dashboard() {
     const [selectedPatientId, setSelectedPatientId] = useState(null);
     const [clinicalNote, setClinicalNote] = useState('');
     const [refreshKey, setRefreshKey] = useState(0);
+    const [appointments, setAppointments] = useState([]);
+    const [metrics, setMetrics] = useState(EMPTY_METRICS);
+    const [isLoading, setIsLoading] = useState(true);
 
-    const triggerRefresh = () => setRefreshKey((v) => v + 1);
-    void refreshKey;
+    useEffect(() => {
+        let cancelled = false;
 
-    const userId = user?.id ?? null;
-    const doctorData = DataService.getDoctorDashboardData();
-    const patientAppointments = userId ? DataService.getPatientAppointments(userId) : [];
-    const patientFiles = userId ? DataService.getPatientFiles(userId) : [];
+        const loadDashboard = async () => {
+            if (!user) {
+                setIsLoading(false);
+                return;
+            }
+
+            setIsLoading(true);
+
+            try {
+                if (authApi.isBackendEnabled) {
+                    if (user.role === 'docteur') {
+                        const dashboard = await appointmentsApi.getDashboard();
+                        if (!cancelled) {
+                            setAppointments(dashboard.appointments);
+                            setMetrics(dashboard.metrics);
+                        }
+                    } else {
+                        const mine = await appointmentsApi.getMine();
+                        if (!cancelled) {
+                            setAppointments(mine);
+                            setMetrics(EMPTY_METRICS);
+                        }
+                    }
+                } else if (user.role === 'docteur') {
+                    const dashboard = DataService.getDoctorDashboardData();
+                    if (!cancelled) {
+                        setAppointments(dashboard.appointments);
+                        setMetrics(dashboard.metrics);
+                    }
+                } else if (!cancelled) {
+                    setAppointments(DataService.getPatientAppointments(user.id));
+                    setMetrics(EMPTY_METRICS);
+                }
+            } catch (error) {
+                if (!cancelled) {
+                    notify.error(error.details || error.message || 'Impossible de charger le dashboard');
+                }
+            } finally {
+                if (!cancelled) {
+                    setIsLoading(false);
+                }
+            }
+        };
+
+        loadDashboard();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [user, refreshKey, notify]);
+
     const query = searchQuery.trim().toLowerCase();
+    const userId = user?.id ?? null;
 
-    const filteredAppointments = doctorData.appointments.filter((appt) => {
-        const patient = DataService.getUserById(appt.patientId);
-        const byStatus = statusFilter === 'all' ? true : appt.status === statusFilter;
-        const byQuery = query
-            ? `${patient?.name || ''} ${patient?.email || ''} ${appt.reason || ''}`
-                  .toLowerCase()
-                  .includes(query)
-            : true;
-        return byStatus && byQuery;
-    });
+    const patientAppointments = useMemo(
+        () => appointments.filter((appointment) => appointment.patientId === userId),
+        [appointments, userId]
+    );
+    const patientFiles = useMemo(() => buildFileItemsFromAppointments(patientAppointments), [patientAppointments]);
 
-    const selectedAppointment =
-        doctorData.appointments.find((a) => a.id === selectedAppointmentId) || null;
-    const selectedPatientRecord = selectedPatientId
-        ? DataService.getPatientFullRecord(selectedPatientId)
-        : null;
-    const doctorSelectedPatientFiles = selectedPatientId
-        ? DataService.getFilesByPatientId(selectedPatientId)
-        : [];
+    const filteredAppointments = useMemo(
+        () =>
+            appointments.filter((appointment) => {
+                const patient = appointment.patient;
+                const byStatus = statusFilter === 'all' ? true : appointment.status === statusFilter;
+                const byQuery = query
+                    ? `${patient?.name || appointment.patientName || ''} ${patient?.email || ''} ${appointment.reason || ''}`
+                          .toLowerCase()
+                          .includes(query)
+                    : true;
+                return byStatus && byQuery;
+            }),
+        [appointments, query, statusFilter]
+    );
+
+    const selectedAppointment = useMemo(
+        () => appointments.find((appointment) => appointment.id === selectedAppointmentId) || null,
+        [appointments, selectedAppointmentId]
+    );
+
+    const selectedPatientRecord = useMemo(
+        () => (selectedPatientId ? buildPatientRecord(appointments, selectedPatientId) : null),
+        [appointments, selectedPatientId]
+    );
+
+    const doctorSelectedPatientFiles = useMemo(
+        () =>
+            selectedPatientRecord
+                ? buildFileItemsFromAppointments(selectedPatientRecord.history.appointments)
+                : [],
+        [selectedPatientRecord]
+    );
 
     if (!user) return <Navigate to="/login" />;
 
-    const handleStatusChange = (appointmentId, status) => {
-        DataService.updateAppointmentStatus(appointmentId, status);
-        notify.success(`✓ Statut: ${STATUS_LABELS[status]}`);
-        triggerRefresh();
+    const triggerRefresh = () => setRefreshKey((value) => value + 1);
+
+    const handleStatusChange = async (appointmentId, status) => {
+        try {
+            if (authApi.isBackendEnabled) {
+                await appointmentsApi.updateStatus(appointmentId, status);
+            } else {
+                DataService.updateAppointmentStatus(appointmentId, status);
+            }
+
+            notify.success(`Statut: ${STATUS_LABELS[status]}`);
+            triggerRefresh();
+        } catch (error) {
+            notify.error(error.details || error.message || 'Impossible de mettre a jour le statut');
+        }
     };
 
-    const handleDeleteAppointment = (appointmentId) => {
+    const handleDeleteAppointment = async (appointmentId) => {
         const confirmed = window.confirm('Supprimer cette demande de rendez-vous ? Cette action est définitive.');
         if (!confirmed) return;
 
-        const deleted = DataService.deleteAppointment(appointmentId);
-        if (deleted) {
+        try {
+            if (authApi.isBackendEnabled) {
+                await appointmentsApi.remove(appointmentId);
+            } else {
+                const deleted = DataService.deleteAppointment(appointmentId);
+                if (!deleted) {
+                    notify.error('Demande non trouvee');
+                    return;
+                }
+            }
+
             if (selectedAppointmentId === appointmentId) setSelectedAppointmentId(null);
-            if (selectedPatientRecord?.history?.appointments?.some((apt) => apt.id === appointmentId)) {
+            if (selectedPatientRecord?.history?.appointments?.some((appointment) => appointment.id === appointmentId)) {
                 setSelectedPatientId(null);
             }
-            notify.success('✓ Demande supprimée');
+
+            notify.success('Demande supprimee');
             triggerRefresh();
-            return;
+        } catch (error) {
+            notify.error(error.details || error.message || 'Impossible de supprimer la demande');
         }
-        notify.error('❌ Demande non trouvée');
     };
 
     const handleOpenRecord = (appointment) => {
@@ -91,33 +253,50 @@ export default function Dashboard() {
         setSelectedPatientId(appointment.patientId);
     };
 
-    const handleAddClinicalNote = () => {
+    const handleAddClinicalNote = async () => {
         if (!selectedAppointment || !clinicalNote.trim()) {
-            notify.error('Veuillez sélectionner un dossier et saisir une note');
+            notify.error('Veuillez selectionner un dossier et saisir une note');
             return;
         }
 
-        DataService.addClinicalNote(selectedAppointment.id, clinicalNote.trim());
-        notify.success('✓ Note enregistrée au dossier patient');
-        setClinicalNote('');
-        triggerRefresh();
+        try {
+            if (authApi.isBackendEnabled) {
+                await appointmentsApi.addNote(selectedAppointment.id, clinicalNote.trim());
+            } else {
+                DataService.addClinicalNote(selectedAppointment.id, clinicalNote.trim());
+            }
+
+            notify.success('Note enregistree au dossier patient');
+            setClinicalNote('');
+            triggerRefresh();
+        } catch (error) {
+            notify.error(error.details || error.message || 'Impossible d enregistrer la note');
+        }
     };
 
     const handleReminderEmail = async (appointment) => {
-        const patient = DataService.getUserById(appointment.patientId);
-        if (!patient) return;
+        const patientEmail = appointment.patient?.email;
+        if (!patientEmail) {
+            notify.error('Email patient indisponible');
+            return;
+        }
 
-        await NotificationService.sendAppointmentReminder(appointment, patient.email);
-        NotificationService.notify('success', 'Rappel envoye', 'Un rappel patient a ete simule avec succes.');
+        await NotificationService.sendAppointmentReminder(
+            appointment,
+            patientEmail,
+            appointment.patient?.name || appointment.patientName
+        );
+        NotificationService.notify('success', 'Rappel envoye', 'Le rappel patient a ete envoye.');
     };
 
     const handlePatientReminder = async () => {
-        const upcoming = patientAppointments.find((apt) => apt.status !== 'annule');
+        const upcoming = patientAppointments.find((appointment) => appointment.status !== 'annule');
         if (!upcoming) {
             NotificationService.notify('warning', 'Aucun rendez-vous', 'Aucun rendez-vous actif pour rappel.');
             return;
         }
-        await NotificationService.sendAppointmentReminder(upcoming, user.email);
+
+        await NotificationService.sendAppointmentReminder(upcoming, user.email, user.name);
         NotificationService.notify('success', 'Rappel envoye', 'Le rappel a ete envoye sur votre email.');
     };
 
@@ -146,8 +325,18 @@ export default function Dashboard() {
             window.open(payload.downloadUrl, '_blank', 'noopener,noreferrer');
             return;
         }
-        NotificationService.notify('warning', 'Apercu indisponible', 'Ce fichier ancien ne peut pas etre previsualise.');
+        NotificationService.notify('warning', 'Apercu indisponible', 'Ce fichier ne peut pas etre previsualise.');
     };
+
+    if (isLoading) {
+        return (
+            <div className="container pt-top min-h-screen">
+                <div className="card">
+                    <p className="subtitle">Chargement de votre espace...</p>
+                </div>
+            </div>
+        );
+    }
 
     if (user.role === 'client') {
         return (
@@ -159,16 +348,16 @@ export default function Dashboard() {
 
                 <div className="grid stats-cards mt-2">
                     <div className="card stat-card"><p>Total demandes</p><strong>{patientAppointments.length}</strong></div>
-                    <div className="card stat-card"><p>En attente</p><strong>{patientAppointments.filter((a) => a.status === 'en_attente').length}</strong></div>
-                    <div className="card stat-card"><p>Confirmees</p><strong>{patientAppointments.filter((a) => a.status === 'confirme').length}</strong></div>
-                    <div className="card stat-card"><p>Effectuees</p><strong>{patientAppointments.filter((a) => a.status === 'effectue').length}</strong></div>
+                    <div className="card stat-card"><p>En attente</p><strong>{patientAppointments.filter((appointment) => appointment.status === 'en_attente').length}</strong></div>
+                    <div className="card stat-card"><p>Confirmees</p><strong>{patientAppointments.filter((appointment) => appointment.status === 'confirme').length}</strong></div>
+                    <div className="card stat-card"><p>Effectuees</p><strong>{patientAppointments.filter((appointment) => appointment.status === 'effectue').length}</strong></div>
                 </div>
 
                 <div className="grid patient-space mt-2">
                     <section className="card">
                         <div className="section-row">
                             <h3>Mes demandes envoyees</h3>
-                            <button className="btn btn-outline" onClick={handlePatientReminder}>Envoyer un rappel Gmail</button>
+                            <button className="btn btn-outline" onClick={handlePatientReminder}>Envoyer un rappel email</button>
                         </div>
 
                         {patientAppointments.length === 0 ? (
@@ -178,11 +367,11 @@ export default function Dashboard() {
                                 <table className="dashboard-table">
                                     <thead><tr><th>Date</th><th>Heure</th><th>Prestation</th><th>Tarif</th><th>Statut</th><th>Apercu</th></tr></thead>
                                     <tbody>
-                                        {patientAppointments.map((apt) => (
-                                            <tr key={apt.id}>
-                                                <td>{apt.date}</td><td>{apt.time}</td><td>{apt.reason}</td><td>{formatTnd(apt.totalPrice)}</td>
-                                                <td><span className={`status-badge ${STATUS_BADGE_CLASS[apt.status] || ''}`}>{STATUS_LABELS[apt.status] || apt.status}</span></td>
-                                                <td><button className="btn btn-outline" onClick={() => setSelectedAppointmentId(apt.id)}>Voir</button></td>
+                                        {patientAppointments.map((appointment) => (
+                                            <tr key={appointment.id}>
+                                                <td>{appointment.date}</td><td>{appointment.time}</td><td>{appointment.reason}</td><td>{formatTnd(appointment.totalPrice)}</td>
+                                                <td><span className={`status-badge ${STATUS_BADGE_CLASS[appointment.status] || ''}`}>{STATUS_LABELS[appointment.status] || appointment.status}</span></td>
+                                                <td><button className="btn btn-outline" onClick={() => setSelectedAppointmentId(appointment.id)}>Voir</button></td>
                                             </tr>
                                         ))}
                                     </tbody>
@@ -245,10 +434,10 @@ export default function Dashboard() {
             </div>
 
             <div className="grid stats-cards mt-2">
-                <div className="card stat-card"><p>Patients actifs</p><strong>{doctorData.metrics.activePatients}</strong></div>
-                <div className="card stat-card"><p>Rendez-vous total</p><strong>{doctorData.metrics.totalAppointments}</strong></div>
-                <div className="card stat-card"><p>En attente</p><strong>{doctorData.metrics.pendingAppointments}</strong></div>
-                <div className="card stat-card"><p>Confirmes</p><strong>{doctorData.metrics.confirmedAppointments}</strong></div>
+                <div className="card stat-card"><p>Patients actifs</p><strong>{metrics.activePatients}</strong></div>
+                <div className="card stat-card"><p>Rendez-vous total</p><strong>{metrics.totalAppointments}</strong></div>
+                <div className="card stat-card"><p>En attente</p><strong>{metrics.pendingAppointments}</strong></div>
+                <div className="card stat-card"><p>Confirmes</p><strong>{metrics.confirmedAppointments}</strong></div>
             </div>
 
             <section className="card mt-2">
@@ -267,27 +456,24 @@ export default function Dashboard() {
                     <table className="dashboard-table">
                         <thead><tr><th>Date</th><th>Heure</th><th>Patient</th><th>Prestation</th><th>Tarif</th><th>Statut</th><th>Actions</th></tr></thead>
                         <tbody>
-                            {filteredAppointments.map((apt) => {
-                                const patient = DataService.getUserById(apt.patientId);
-                                return (
-                                    <tr key={apt.id}>
-                                        <td>{apt.date}</td><td>{apt.time}</td>
-                                        <td><div>{patient?.name || apt.patientName}</div><small className="subtitle">{patient?.phone || '+216 98 561 586'}</small></td>
-                                        <td>{apt.reason}</td><td>{formatTnd(apt.totalPrice)}</td>
-                                        <td><span className={`status-badge ${STATUS_BADGE_CLASS[apt.status] || ''}`}>{STATUS_LABELS[apt.status] || apt.status}</span></td>
-                                        <td>
-                                            <div className="table-actions">
-                                                <button className="btn btn-outline" onClick={() => handleOpenRecord(apt)}>Dossier</button>
-                                                <select value={apt.status} onChange={(e) => handleStatusChange(apt.id, e.target.value)}>
-                                                    <option value="en_attente">En attente</option><option value="confirme">Confirme</option><option value="effectue">Effectue</option><option value="annule">Annule</option>
-                                                </select>
-                                                <button className="btn btn-outline" onClick={() => handleReminderEmail(apt)}>Rappel Gmail</button>
-                                                <button className="btn btn-outline btn-danger-action" onClick={() => handleDeleteAppointment(apt.id)}><Trash2 size={14} /> Supprimer</button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                );
-                            })}
+                            {filteredAppointments.map((appointment) => (
+                                <tr key={appointment.id}>
+                                    <td>{appointment.date}</td><td>{appointment.time}</td>
+                                    <td><div>{appointment.patient?.name || appointment.patientName}</div><small className="subtitle">{appointment.patient?.phone || '+216 98 561 586'}</small></td>
+                                    <td>{appointment.reason}</td><td>{formatTnd(appointment.totalPrice)}</td>
+                                    <td><span className={`status-badge ${STATUS_BADGE_CLASS[appointment.status] || ''}`}>{STATUS_LABELS[appointment.status] || appointment.status}</span></td>
+                                    <td>
+                                        <div className="table-actions">
+                                            <button className="btn btn-outline" onClick={() => handleOpenRecord(appointment)}>Dossier</button>
+                                            <select value={appointment.status} onChange={(e) => handleStatusChange(appointment.id, e.target.value)}>
+                                                <option value="en_attente">En attente</option><option value="confirme">Confirme</option><option value="effectue">Effectue</option><option value="annule">Annule</option>
+                                            </select>
+                                            <button className="btn btn-outline" onClick={() => handleReminderEmail(appointment)}>Rappel email</button>
+                                            <button className="btn btn-outline btn-danger-action" onClick={() => handleDeleteAppointment(appointment.id)}><Trash2 size={14} /> Supprimer</button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
                         </tbody>
                     </table>
                 </div>
@@ -300,7 +486,7 @@ export default function Dashboard() {
                     <div className="grid dossier-grid mt-2">
                         <article className="record-panel">
                             <h4>Profil patient</h4>
-                            <p><strong>Email:</strong> {selectedPatientRecord.patient?.email}</p>
+                            <p><strong>Email:</strong> {selectedPatientRecord.patient?.email || 'Non renseigne'}</p>
                             <p><strong>Telephone:</strong> {selectedPatientRecord.patient?.phone || 'Non renseigne'}</p>
                             <p><strong>Date de naissance:</strong> {selectedPatientRecord.patient?.birthDate || 'Non renseignee'}</p>
                             <p><strong>Contact urgence:</strong> {selectedPatientRecord.patient?.emergencyContact || 'Non renseigne'}</p>
@@ -358,14 +544,14 @@ export default function Dashboard() {
                     <div className="mt-2">
                         <h4>Historique des consultations</h4>
                         <div className="timeline-list mt-2">
-                            {selectedPatientRecord.history.appointments.map((apt) => (
-                                <div key={apt.id} className="timeline-item">
+                            {selectedPatientRecord.history.appointments.map((appointment) => (
+                                <div key={appointment.id} className="timeline-item">
                                     <div>
-                                        <strong>{apt.date} - {apt.time}</strong>
-                                        <p>{apt.reason} ({formatTnd(apt.totalPrice)})</p>
-                                        <span className={`status-badge ${STATUS_BADGE_CLASS[apt.status] || ''}`}>{STATUS_LABELS[apt.status] || apt.status}</span>
+                                        <strong>{appointment.date} - {appointment.time}</strong>
+                                        <p>{appointment.reason} ({formatTnd(appointment.totalPrice)})</p>
+                                        <span className={`status-badge ${STATUS_BADGE_CLASS[appointment.status] || ''}`}>{STATUS_LABELS[appointment.status] || appointment.status}</span>
                                     </div>
-                                    <button className="btn btn-outline" onClick={() => setSelectedAppointmentId(apt.id)}>Ouvrir</button>
+                                    <button className="btn btn-outline" onClick={() => setSelectedAppointmentId(appointment.id)}>Ouvrir</button>
                                 </div>
                             ))}
                         </div>

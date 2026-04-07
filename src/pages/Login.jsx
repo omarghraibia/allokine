@@ -5,6 +5,7 @@ import { AuthContext } from '../context/AuthContext';
 import { ValidationService } from '../ValidationService';
 import { NotificationService } from '../NotificationService';
 import { useToast } from '../context/ToastContext';
+import { hasSupabaseBrowserConfig, supabaseBrowser } from '../services/supabaseBrowser';
 
 export default function Login() {
     const [isRegisterMode, setIsRegisterMode] = useState(false);
@@ -23,7 +24,7 @@ export default function Login() {
     const [errors, setErrors] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
 
-    const { login, register, forgotPassword, resetPassword } = useContext(AuthContext);
+    const { login, register, forgotPassword, resetPassword, completeOAuthLogin } = useContext(AuthContext);
     const navigate = useNavigate();
     const { notify } = useToast();
     const [searchParams] = useSearchParams();
@@ -36,6 +37,31 @@ export default function Login() {
             setShowForgotPassword(true);
         }
     }, [urlResetToken]);
+
+    useEffect(() => {
+        const syncOAuthSession = async () => {
+            if (!supabaseBrowser) return;
+            if (!window.location.href.includes('code=') && !window.location.hash.includes('access_token')) return;
+
+            setIsLoading(true);
+            try {
+                const { data, error } = await supabaseBrowser.auth.getSession();
+                if (error || !data.session?.access_token) {
+                    throw error || new Error('Session sociale introuvable');
+                }
+
+                await completeOAuthLogin(data.session.access_token);
+                notify.success('Connexion sociale reussie');
+                navigate('/dashboard', { replace: true });
+            } catch (error) {
+                setErrors([error?.message || 'Connexion sociale impossible']);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        syncOAuthSession();
+    }, [completeOAuthLogin, navigate, notify]);
 
     const resetForm = () => {
         setName('');
@@ -54,32 +80,21 @@ export default function Login() {
         setErrors([]);
         setIsLoading(true);
         try {
-            const result =
-                provider === 'google'
-                    ? await NotificationService.connectGoogleOAuth()
-                    : await NotificationService.connectFacebookOAuth();
-
-            if (!result.success) {
-                setErrors([`Connexion ${provider} indisponible`]);
+            if (!supabaseBrowser || !hasSupabaseBrowserConfig) {
+                setErrors(['Configuration Supabase OAuth manquante']);
                 return;
             }
 
-            const socialPassword = 'Social@1234';
-            const accountEmail = result.user.email;
-            const accountName = result.user.name;
+            const { error } = await supabaseBrowser.auth.signInWithOAuth({
+                provider,
+                options: {
+                    redirectTo: `${window.location.origin}/login`
+                }
+            });
 
-            const loginResult = await login(accountEmail, socialPassword);
-            if (!loginResult.success) {
-                await register(accountName, accountEmail, socialPassword, {
-                    phone: '',
-                    birthDate: '',
-                    emergencyContact: ''
-                });
-                await NotificationService.sendWelcomeEmailViaGmail(accountEmail, accountName);
+            if (error) {
+                setErrors([error.message || `Connexion ${provider} indisponible`]);
             }
-
-            NotificationService.notify('success', 'Social login', `Connexion ${provider} reussie (simulation)`);
-            navigate('/dashboard');
         } finally {
             setIsLoading(false);
         }
@@ -119,7 +134,13 @@ export default function Login() {
                 });
 
                 if (result.success) {
-                    await NotificationService.sendWelcomeEmailViaGmail(email, name);
+                    if (hasSupabaseBrowserConfig) {
+                        try {
+                            await NotificationService.sendWelcomeEmailViaGmail(email, name);
+                        } catch {
+                            // welcome email is non-blocking
+                        }
+                    }
                     notify.success(`✓ Bienvenue ${name}! 🎉`);
                     navigate('/dashboard');
                 } else {
