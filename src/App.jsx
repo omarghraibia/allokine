@@ -1,4 +1,4 @@
-﻿import { BrowserRouter as Router, Navigate, Route, Routes } from 'react-router-dom';
+import { BrowserRouter as Router, Navigate, Route, Routes } from 'react-router-dom';
 import { useContext } from 'react';
 import { AuthContext, AuthProvider } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
@@ -19,6 +19,7 @@ import MentionsLegales from './pages/MentionsLegales';
 import Confidentialite from './pages/Confidentialite';
 import ConditionsUtilisation from './pages/ConditionsUtilisation';
 import { getRoleHomePath } from './utils/roleRedirect';
+import { Analytics } from '@vercel/analytics/react';
 
 function RoleDashboardRedirect() {
     const { user, isLoading } = useContext(AuthContext);
@@ -92,6 +93,7 @@ function App() {
                             </Routes>
                         </main>
                         <Footer />
+                        <Analytics />
                     </Router>
                 </ToastProvider>
             </AuthProvider>
