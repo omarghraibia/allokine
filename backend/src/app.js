@@ -4,7 +4,6 @@ import cors from 'cors';
 import express from 'express';
 import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
-import './config/loadEnv.js';
 import appointmentRoutes from './routes/appointments.js';
 import authRoutes from './routes/auth.js';
 import notificationRoutes from './routes/notifications.js';

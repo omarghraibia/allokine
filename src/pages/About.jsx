@@ -35,23 +35,6 @@ export default function About() {
                     </ul>
                 </div>
             </section>
-
-            <h2 className="text-center mt-4">Avis de nos patients</h2>
-            <div className="grid mt-2">
-                <article className="card">
-                    <p>
-                        "Tres professionnel et a l'ecoute. La reeducation de mon genou apres operation s'est
-                        parfaitement deroulee."
-                    </p>
-                    <h4 className="mt-2 text-blue">- Thomas L.</h4>
-                </article>
-                <article className="card">
-                    <p>
-                        "Diagnostic precis et soins de qualite. On sent l'experience et la rigueur du cabinet."
-                    </p>
-                    <h4 className="mt-2 text-blue">- Sophie M.</h4>
-                </article>
-            </div>
         </div>
     );
 }
