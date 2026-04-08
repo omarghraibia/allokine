@@ -2,6 +2,7 @@
 import { createClient } from '@supabase/supabase-js';
 import '../config/loadEnv.js';
 
+// Le code va lire les variables secrètes depuis l'environnement Vercel
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_KEY;
 
