@@ -267,20 +267,26 @@ h4 {
 
 .mobile-menu-btn {
     display: none;
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    padding: 0.3rem 0.5rem;
-    background: transparent;
-    font-size: 1.6rem;
-    color: var(--text-dark);
-    cursor: pointer;
-    transition: background 0.2s ease;
-}
+        width: 46px;
+        height: 46px;
+        min-width: 46px;
+        min-height: 46px;
+        border: 1px solid var(--border-color);
+        border-radius: 14px;
+        background: var(--surface);
+        font-size: 1.4rem;
+        color: var(--text-dark);
+        cursor: pointer;
+        transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
 
-.mobile-menu-btn:hover {
-    background: var(--surface);
-}
-
+    .mobile-menu-btn:hover {
+        background: rgba(34, 211, 238, 0.08);
+        border-color: var(--primary);
+        transform: translateY(-1px);
 .btn {
     display: inline-flex;
     justify-content: center;
@@ -600,12 +606,22 @@ h4 {
     display: flex;
     align-items: center;
     gap: 0.6rem;
+    width: 100%;
     border: 1px solid var(--border-color);
-    border-radius: 10px;
-    padding: 0 0.8rem; /* Padding gauche/droite identique aux autres champs */
+    border-radius: 12px;
+    padding: 0 0.9rem;
     background: var(--surface);
-    min-height: 48px; /* Force la même hauteur que le champ Email */
+    min-height: 52px;
     transition: all 0.2s ease;
+}
+
+.input-icon-wrap input {
+    min-width: 0;
+}
+
+.input-icon-wrap .btn-text {
+    padding: 0.35rem;
+    margin: 0;
 }
 
 /* On transfère l'effet de focus (contour bleu) sur le conteneur entier */
@@ -1009,26 +1025,38 @@ h4 {
 @media (max-width: 900px) {
     .nav-links {
         position: fixed;
-        /* On le fait partir juste sous la navbar et descendre jusqu'en bas */
-        inset: 76px 0 0 0; 
-        
-        /* On utilise un fond 100% opaque (bg-light au lieu de surface rend mieux en plein écran) */
-        background: var(--bg-light); 
-        
-        /* LE PLUS IMPORTANT : Forcer le menu au-dessus du reste de la page */
-        z-index: 9999; 
-        
+        inset: 76px 0 0 0;
+        background: var(--surface);
+        border-top: 1px solid var(--border-color);
+        box-shadow: 0 28px 60px rgba(0, 0, 0, 0.22);
+        z-index: 9999;
         display: flex;
         flex-direction: column;
-        gap: 0.5rem;
-        padding: 1.5rem;
+        gap: 0.8rem;
+        padding: 1.4rem 1.2rem 2rem;
         transform: translateX(-100%);
         transition: transform 0.3s ease;
         overflow-y: auto;
+        min-height: calc(100vh - 76px);
     }
 
     .nav-links.active {
         transform: translateX(0);
+    }
+
+    .nav-links a,
+    .nav-links .btn-text,
+    .nav-links .btn {
+        width: 100%;
+        text-align: left;
+        padding: 0.95rem 1rem;
+        border-radius: 14px;
+    }
+
+    .nav-links a:hover,
+    .nav-links .btn-text:hover,
+    .nav-links .btn:hover {
+        background: rgba(34, 211, 238, 0.1);
     }
 }
 
@@ -1063,13 +1091,16 @@ h4 {
         inset: 76px 0 0 0;
         background: var(--surface);
         border-top: 1px solid var(--border-color);
-        display: grid;
-        gap: 0.2rem;
-        padding: 1rem;
-        align-content: start;
+        box-shadow: 0 28px 60px rgba(0, 0, 0, 0.22);
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        gap: 0.8rem;
+        padding: 1.4rem 1.2rem 2rem;
         transform: translateX(-100%);
         transition: transform 0.25s ease;
-        box-shadow: var(--shadow); /* Ajoute de l'ombre pour bien séparer le menu du contenu */
+        overflow-y: auto;
+        min-height: calc(100vh - 76px);
     }
 
     .nav-links.active {
@@ -1077,11 +1108,20 @@ h4 {
     }
 
     .nav-links a,
-    .btn-text,
+    .nav-links .btn-text,
+    .nav-links .btn,
     .nav-cta {
         width: 100%;
         text-align: left;
         margin: 0;
+        padding: 0.95rem 1rem;
+        border-radius: 14px;
+    }
+
+    .nav-links a:hover,
+    .nav-links .btn-text:hover,
+    .nav-links .btn:hover {
+        background: rgba(34, 211, 238, 0.1);
     }
 }
 

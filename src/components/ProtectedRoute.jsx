@@ -8,7 +8,15 @@ import { useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
 
 export default function ProtectedRoute({ children, requiredRole = null }) {
-    const { user } = useContext(AuthContext);
+    const { user, isLoading } = useContext(AuthContext);
+
+    if (isLoading) {
+        return (
+            <div className="flex-center min-h-screen">
+                <p>Connexion en cours...</p>
+            </div>
+        );
+    }
 
     if (!user) {
         return <Navigate to="/login" replace />;

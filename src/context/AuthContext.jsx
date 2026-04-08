@@ -10,17 +10,25 @@ export const AuthContext = createContext();
 export function AuthProvider({ children }) {
     const [user, setUser] = useState(JSON.parse(localStorage.getItem('allokine_currentUser')) || null);
     const [errors, setErrors] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        DataService.initializeDatabase();
+        let isMounted = true;
+
+        const saveUser = (backendUser) => {
+            setUser(backendUser);
+            localStorage.setItem('allokine_currentUser', JSON.stringify(backendUser));
+            setErrors([]);
+        };
 
         const hydrateFromBackend = async () => {
             if (!authApi.isBackendEnabled) return;
             try {
                 const { user: backendUser } = await authApi.getMe();
-                setUser(backendUser);
-                localStorage.setItem('allokine_currentUser', JSON.stringify(backendUser));
+                if (!isMounted) return;
+                saveUser(backendUser);
             } catch (error) {
+                if (!isMounted) return;
                 if (authApi.isStrictBackend) {
                     setUser(null);
                     localStorage.removeItem('allokine_currentUser');
@@ -29,30 +37,59 @@ export function AuthProvider({ children }) {
             }
         };
 
-        hydrateFromBackend();
-    }, []);
-
-    useEffect(() => {
-        const syncOAuthSession = async () => {
-            if (!authApi.isBackendEnabled || !supabaseBrowser) return;
+        const syncOAuthSession = async (accessToken) => {
+            if (!authApi.isBackendEnabled || !supabaseBrowser || !accessToken) return;
 
             try {
-                const { data, error } = await supabaseBrowser.auth.getSession();
-                if (error || !data.session?.access_token) return;
-
-                const { user: backendUser } = await authApi.exchangeOAuthSession({
-                    accessToken: data.session.access_token
-                });
-
-                setUser(backendUser);
-                localStorage.setItem('allokine_currentUser', JSON.stringify(backendUser));
-                setErrors([]);
+                const { user: backendUser } = await authApi.exchangeOAuthSession({ accessToken });
+                if (!isMounted) return;
+                saveUser(backendUser);
             } catch {
                 // Ignore here; explicit auth screens already surface clearer errors.
             }
         };
 
-        syncOAuthSession();
+        const initializeAuth = async () => {
+            DataService.initializeDatabase();
+            await hydrateFromBackend();
+
+            if (supabaseBrowser) {
+                const { data, error } = await supabaseBrowser.auth.getSession();
+                if (!error && data.session?.access_token) {
+                    await syncOAuthSession(data.session.access_token);
+                }
+            }
+
+            if (isMounted) {
+                setIsLoading(false);
+            }
+        };
+
+        void initializeAuth();
+
+        if (!supabaseBrowser) {
+            return () => {
+                isMounted = false;
+            };
+        }
+
+        const { data: { subscription } } = supabaseBrowser.auth.onAuthStateChange(async (event, session) => {
+            if (!isMounted) return;
+
+            if (event === 'SIGNED_IN' && session?.access_token) {
+                await syncOAuthSession(session.access_token);
+                setIsLoading(false);
+            } else if (event === 'SIGNED_OUT') {
+                setUser(null);
+                localStorage.removeItem('allokine_currentUser');
+                setIsLoading(false);
+            }
+        });
+
+        return () => {
+            isMounted = false;
+            subscription?.unsubscribe();
+        };
     }, []);
 
     const login = async (email, password) => {
@@ -243,6 +280,7 @@ export function AuthProvider({ children }) {
         <AuthContext.Provider
             value={{
                 user,
+                isLoading,
                 errors,
                 login,
                 register,
