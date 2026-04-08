@@ -1,6 +1,6 @@
 {
   "framework": "vite",
-  "installCommand": "npm ci && npm ci --prefix backend",
+  "installCommand": "npm ci --include=dev && npm ci --prefix backend",
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "rewrites": [
