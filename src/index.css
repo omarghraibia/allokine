@@ -976,14 +976,31 @@ h4 {
     color: var(--text-gray);
 }
 
-@media (max-width: 980px) {
-    .hero-grid {
-        grid-template-columns: 1fr;
+@media (max-width: 900px) {
+    .nav-links {
+        position: fixed;
+        /* On le fait partir juste sous la navbar et descendre jusqu'en bas */
+        inset: 76px 0 0 0; 
+        
+        /* On utilise un fond 100% opaque (bg-light au lieu de surface rend mieux en plein écran) */
+        background: var(--bg-light); 
+        
+        /* LE PLUS IMPORTANT : Forcer le menu au-dessus du reste de la page */
+        z-index: 9999; 
+        
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        padding: 1.5rem;
+        transform: translateX(-100%);
+        transition: transform 0.3s ease;
+        overflow-y: auto;
     }
 
-    .orientation-controls {
-        grid-template-columns: 1fr;
+    .nav-links.active {
+        transform: translateX(0);
     }
+}
 
     .about-layout,
     .contact-grid {
