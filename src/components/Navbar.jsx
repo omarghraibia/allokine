@@ -1,6 +1,7 @@
 import { useContext, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
+import { getRoleHomePath } from '../utils/roleRedirect';
 
 export default function Navbar() {
     const { user, logout } = useContext(AuthContext);
@@ -54,7 +55,7 @@ export default function Navbar() {
 
                     {user ? (
                         <>
-                            <Link to="/dashboard" className="text-blue font-bold" onClick={closeMenu}>
+                            <Link to={getRoleHomePath(user.role)} className="text-blue font-bold" onClick={closeMenu}>
                                 Mon Espace
                             </Link>
                             <button onClick={handleLogout} className="btn-text btn-danger">

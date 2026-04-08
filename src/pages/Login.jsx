@@ -6,6 +6,7 @@ import { ValidationService } from '../ValidationService';
 import { NotificationService } from '../NotificationService';
 import { useToast } from '../context/ToastContext';
 import { hasSupabaseBrowserConfig, supabase } from '../services/supabaseBrowser';
+import { getRoleHomePath } from '../utils/roleRedirect';
 
 export default function Login() {
     const [isRegisterMode, setIsRegisterMode] = useState(false);
@@ -24,7 +25,7 @@ export default function Login() {
     const [errors, setErrors] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
 
-    const { login, register, forgotPassword, resetPassword } = useContext(AuthContext);
+    const { user, login, register, forgotPassword, resetPassword } = useContext(AuthContext);
     const navigate = useNavigate();
     const { notify } = useToast();
     const [searchParams] = useSearchParams();
@@ -37,6 +38,12 @@ export default function Login() {
             setShowForgotPassword(true);
         }
     }, [urlResetToken]);
+
+    useEffect(() => {
+        if (user) {
+            navigate(getRoleHomePath(user.role), { replace: true });
+        }
+    }, [user, navigate]);
 
     const resetForm = () => {
         setName('');
@@ -63,7 +70,7 @@ export default function Login() {
             const { error } = await supabase.auth.signInWithOAuth({
                 provider: 'google',
                 options: {
-                    redirectTo: `${window.location.origin}/dashboard`
+                    redirectTo: `${window.location.origin}/login`
                 }
             });
 
@@ -88,7 +95,7 @@ export default function Login() {
             const { error } = await supabase.auth.signInWithOAuth({
                 provider: 'facebook',
                 options: {
-                    redirectTo: `${window.location.origin}/dashboard`
+                    redirectTo: `${window.location.origin}/login`
                 }
             });
 
@@ -143,7 +150,7 @@ export default function Login() {
                         }
                     }
                     notify.success(`✓ Bienvenue ${name}! 🎉`);
-                    navigate('/dashboard');
+                    navigate(getRoleHomePath(result.user?.role), { replace: true });
                 } else {
                     result.errors?.forEach(err => notify.error(err));
                 }
@@ -161,7 +168,7 @@ export default function Login() {
                 const result = await login(email, password);
                 if (result.success) {
                     notify.success('✓ Connexion réussie! 🎊');
-                    navigate('/dashboard');
+                    navigate(getRoleHomePath(result.user?.role), { replace: true });
                 } else {
                     notify.error(result.error || 'Identifiants incorrects');
                 }

@@ -112,7 +112,7 @@ export function AuthProvider({ children }) {
                 const { user: backendUser } = await authApi.login({ email, password });
                 setUser(backendUser);
                 localStorage.setItem('allokine_currentUser', JSON.stringify(backendUser));
-                return { success: true };
+                return { success: true, user: backendUser };
             } catch (error) {
                 if (authApi.isStrictBackend) {
                     const backendError = error.message || 'Email ou mot de passe incorrect';
@@ -129,7 +129,7 @@ export function AuthProvider({ children }) {
             delete userToStore.passwordHash;
             setUser(userToStore);
             localStorage.setItem('allokine_currentUser', JSON.stringify(userToStore));
-            return { success: true };
+            return { success: true, user: userToStore };
         }
 
         const error = 'Email ou mot de passe incorrect';
@@ -171,7 +171,7 @@ export function AuthProvider({ children }) {
                 setUser(backendUser);
                 localStorage.setItem('allokine_currentUser', JSON.stringify(backendUser));
                 setErrors([]);
-                return { success: true };
+                return { success: true, user: backendUser };
             } catch (error) {
                 if (authApi.isStrictBackend) {
                     const backendErrors = [error.message || "Erreur lors de l'inscription"];
@@ -203,7 +203,7 @@ export function AuthProvider({ children }) {
         localStorage.setItem('allokine_currentUser', JSON.stringify(userToStore));
         setErrors([]);
 
-        return { success: true };
+        return { success: true, user: userToStore };
     };
 
     const forgotPassword = async (email) => {

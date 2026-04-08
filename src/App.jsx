@@ -1,5 +1,6 @@
 ﻿import { BrowserRouter as Router, Navigate, Route, Routes } from 'react-router-dom';
-import { AuthProvider } from './context/AuthContext';
+import { useContext } from 'react';
+import { AuthContext, AuthProvider } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import ErrorBoundary from './components/ErrorBoundary';
 import Navbar from './components/Navbar';
@@ -17,6 +18,21 @@ import AvisEnLigne from './pages/AvisEnLigne';
 import MentionsLegales from './pages/MentionsLegales';
 import Confidentialite from './pages/Confidentialite';
 import ConditionsUtilisation from './pages/ConditionsUtilisation';
+import { getRoleHomePath } from './utils/roleRedirect';
+
+function RoleDashboardRedirect() {
+    const { user, isLoading } = useContext(AuthContext);
+
+    if (isLoading) {
+        return null;
+    }
+
+    if (!user) {
+        return <Navigate to="/login" replace />;
+    }
+
+    return <Navigate to={getRoleHomePath(user.role)} replace />;
+}
 
 function App() {
     return (
@@ -34,6 +50,22 @@ function App() {
                                     path="/dashboard"
                                     element={
                                         <ProtectedRoute>
+                                            <RoleDashboardRedirect />
+                                        </ProtectedRoute>
+                                    }
+                                />
+                                <Route
+                                    path="/espace-client"
+                                    element={
+                                        <ProtectedRoute requiredRole="client">
+                                            <Dashboard />
+                                        </ProtectedRoute>
+                                    }
+                                />
+                                <Route
+                                    path="/espace-docteur"
+                                    element={
+                                        <ProtectedRoute requiredRole="docteur">
                                             <Dashboard />
                                         </ProtectedRoute>
                                     }
