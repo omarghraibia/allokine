@@ -595,28 +595,58 @@ h4 {
     transform: translateY(-1px);
 }
 
+/* Le conteneur prend exactement la même taille et apparence qu'un input normal */
 .input-icon-wrap {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.6rem;
     border: 1px solid var(--border-color);
     border-radius: 10px;
-    padding: 0.35rem 0.55rem;
+    padding: 0 0.8rem; /* Padding gauche/droite identique aux autres champs */
     background: var(--surface);
+    min-height: 48px; /* Force la même hauteur que le champ Email */
+    transition: all 0.2s ease;
 }
 
+/* On transfère l'effet de focus (contour bleu) sur le conteneur entier */
+.input-icon-wrap:focus-within {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.25);
+}
+
+/* L'input à l'intérieur ne doit avoir ni bordure ni padding qui l'écrase */
 .input-icon-wrap input {
-    border: 0;
-    padding: 0.35rem 0.2rem;
+    border: none;
+    padding: 0;
     box-shadow: none;
     flex: 1;
     background: transparent;
     color: var(--text-dark);
+    height: 100%;
+    outline: none;
+    font: inherit;
 }
 
+/* On supprime le focus de l'input interne pour ne pas avoir de double bordure */
 .input-icon-wrap input:focus {
-    border: 0;
+    border: none;
     box-shadow: none;
+    outline: none;
+}
+
+/* Le bouton "Oeil" pour afficher le mot de passe */
+.input-icon-wrap .btn-text {
+    padding: 0.2rem;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-gray);
+}
+
+.input-icon-wrap .btn-text:hover {
+    color: var(--primary);
+    background: transparent;
 }
 
 .pricing-grid {
