@@ -1,35 +1,65 @@
-﻿@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Source+Sans+3:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Source+Sans+3:wght@400;500;600;700&display=swap');
 
 :root {
+    /* Couleurs principales (Communes) */
     --primary: #22d3ee;
     --primary-rgb: 34, 211, 238;
     --primary-hover: #67e8f9;
     --accent: #06b6d4;
+
+    /* Mode Sombre par défaut */
     --bg-light: #0f172a;
     --surface: #111c35;
-    --text-dark: #ffffff;
+    --nav-bg: rgba(17, 28, 53, 0.92);
+    --panel-bg: rgba(17, 28, 53, 0.84);
+    --text-dark: #ffffff; /* Nom conservé pour la compatibilité HTML, mais agit comme "text-main" */
     --text-gray: #cbd5e1;
     --border-color: #233354;
-    --radius: 14px;
     --shadow: 0 18px 45px -25px rgba(10, 22, 43, 0.75);
+
+    /* Couleurs de retours (Alertes, Badges) adaptées au sombre */
+    --error-text: #fca5a5;
+    --badge-warn-text: #fde68a;
+    --badge-info-text: #a5f3fc;
+    --badge-success-text: #86efac;
+    --badge-danger-text: #fecaca;
+
+    --radius: 14px;
 }
 
 [data-theme='dark'] {
     --bg-light: #0b1222;
     --surface: #111c35;
+    --nav-bg: rgba(17, 28, 53, 0.92);
+    --panel-bg: rgba(17, 28, 53, 0.84);
     --text-dark: #ffffff;
     --text-gray: #cbd5e1;
     --border-color: #233354;
     --shadow: 0 18px 45px -25px rgba(0, 0, 0, 0.85);
+
+    --error-text: #fca5a5;
+    --badge-warn-text: #fde68a;
+    --badge-info-text: #a5f3fc;
+    --badge-success-text: #86efac;
+    --badge-danger-text: #fecaca;
 }
 
 [data-theme='light'] {
     --bg-light: #f3f8ff;
     --surface: #ffffff;
+    --nav-bg: rgba(255, 255, 255, 0.92);
+    --panel-bg: rgba(255, 255, 255, 0.84);
     --text-dark: #0f172a;
     --text-gray: #475569;
     --border-color: #dce8f8;
     --shadow: 0 18px 45px -28px rgba(12, 34, 74, 0.35);
+
+    /* Couleurs de retours assombries pour rester lisibles sur fond clair */
+    --error-text: #b91c1c;
+    --badge-warn-text: #b45309;
+    --badge-info-text: #0369a1;
+    --badge-success-text: #15803d;
+    --badge-danger-text: #b91c1c;
 }
 
 * {
@@ -74,7 +104,7 @@ a {
 }
 
 .text-error {
-    color: #dc2626;
+    color: var(--error-text);
     font-size: 0.9rem;
 }
 
@@ -141,11 +171,12 @@ h4 {
     position: fixed;
     inset: 0 0 auto 0;
     height: 76px;
-    background: rgba(17, 28, 53, 0.92);
+    background: var(--nav-bg);
     border-bottom: 1px solid var(--border-color);
     -webkit-backdrop-filter: blur(10px);
     backdrop-filter: blur(10px);
     z-index: 1000;
+    transition: background-color 0.3s ease;
 }
 
 .nav-shell {
@@ -167,6 +198,7 @@ h4 {
     display: inline-flex;
     align-items: center;
     gap: 0.6rem;
+    color: var(--text-dark);
 }
 
 .nav-logo-img {
@@ -214,19 +246,19 @@ h4 {
 }
 
 .btn-danger {
-    color: #b91c1c;
+    color: var(--error-text);
 }
 
 .btn-danger-action {
     border-color: rgba(239, 68, 68, 0.55);
-    color: #fecaca;
-    background: rgba(127, 29, 29, 0.2);
+    color: var(--error-text);
+    background: rgba(239, 68, 68, 0.1);
 }
 
 .btn-danger-action:hover {
     border-color: rgba(248, 113, 113, 0.85);
-    background: rgba(127, 29, 29, 0.34);
-    color: #fee2e2;
+    background: rgba(239, 68, 68, 0.2);
+    color: var(--error-text);
 }
 
 .theme-toggle {
@@ -235,11 +267,18 @@ h4 {
 
 .mobile-menu-btn {
     display: none;
-    border: solid;
-    background: var(--bg-light);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 0.3rem 0.5rem;
+    background: transparent;
     font-size: 1.6rem;
     color: var(--text-dark);
     cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.mobile-menu-btn:hover {
+    background: var(--surface);
 }
 
 .btn {
@@ -336,9 +375,9 @@ h4 {
 }
 
 .alert-box {
-    background: rgba(255, 99, 99, 0.12);
-    border: 1px solid rgba(255, 99, 99, 0.44);
-    color: #fecaca;
+    background: rgba(239, 68, 68, 0.12);
+    border: 1px solid rgba(239, 68, 68, 0.44);
+    color: var(--error-text);
     padding: 0.9rem;
     border-radius: 10px;
 }
@@ -475,22 +514,22 @@ h4 {
 
 .badge-warn {
     background: rgba(245, 158, 11, 0.18);
-    color: #fde68a;
+    color: var(--badge-warn-text);
 }
 
 .badge-info {
     background: rgba(34, 211, 238, 0.2);
-    color: #a5f3fc;
+    color: var(--badge-info-text);
 }
 
 .badge-success {
     background: rgba(16, 185, 129, 0.18);
-    color: #86efac;
+    color: var(--badge-success-text);
 }
 
 .badge-danger {
     background: rgba(239, 68, 68, 0.18);
-    color: #fecaca;
+    color: var(--badge-danger-text);
 }
 
 .dossier-grid {
@@ -501,7 +540,7 @@ h4 {
     border: 1px solid var(--border-color);
     border-radius: 12px;
     padding: 0.9rem;
-    background: rgba(17, 28, 53, 0.84);
+    background: var(--panel-bg);
 }
 
 .record-panel p {
@@ -546,7 +585,7 @@ h4 {
 
 .btn-social {
     justify-content: flex-start;
-    background: rgba(17, 28, 53, 0.82);
+    background: var(--surface);
     border-color: var(--border-color);
     color: var(--text-dark);
 }
@@ -571,6 +610,8 @@ h4 {
     padding: 0.35rem 0.2rem;
     box-shadow: none;
     flex: 1;
+    background: transparent;
+    color: var(--text-dark);
 }
 
 .input-icon-wrap input:focus {
@@ -835,7 +876,7 @@ h4 {
     border: 1px solid var(--border-color);
     border-radius: 12px;
     padding: 0.75rem;
-    background: rgba(17, 28, 53, 0.80);
+    background: var(--surface);
 }
 
 .stats-grid strong {
@@ -897,7 +938,7 @@ h4 {
 .footer {
     margin-top: auto;
     border-top: 1px solid var(--border-color);
-    background: rgba(17, 28, 53, 0.92);
+    background: var(--nav-bg);
     padding-top: 2rem;
 }
 
@@ -981,6 +1022,7 @@ h4 {
         align-content: start;
         transform: translateX(-100%);
         transition: transform 0.25s ease;
+        box-shadow: var(--shadow); /* Ajoute de l'ombre pour bien séparer le menu du contenu */
     }
 
     .nav-links.active {
