@@ -25,7 +25,7 @@ export default function Contact() {
                         </a>
 
                         <a href="https://www.facebook.com/profile.php?id=100089482776345" target="_blank" rel="noopener noreferrer" className="contact-btn">
-                            <span><Share2 size={16} /> Facebook</span> Profil officiel
+                            <span><Share2 size={16} /> Facebook</span> Page Facebook
                         </a>
                     </section>
 

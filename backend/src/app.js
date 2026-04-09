@@ -42,13 +42,13 @@ app.use(
     })
 );
 
-app.get('/api/health', (_req, res) => {
+app.get('/health', (_req, res) => {
     res.status(200).json({ ok: true, service: 'allokine-backend' });
 });
 
-app.use('/api/auth', authRoutes);
-app.use('/api/appointments', appointmentRoutes);
-app.use('/api/notifications', notificationRoutes);
+app.use('/auth', authRoutes);
+app.use('/appointments', appointmentRoutes);
+app.use('/notifications', notificationRoutes);
 
 app.use((error, _req, res, next) => {
     if (error?.message === 'Origin non autorisee par CORS') {
