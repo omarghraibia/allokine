@@ -50,7 +50,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/appointments', appointmentRoutes);
 app.use('/api/notifications', notificationRoutes);
 
-app.use((error, _req, res) => {
+app.use((error, _req, res, next) => {
     if (error?.message === 'Origin non autorisee par CORS') {
         return res.status(403).json({ error: error.message });
     }

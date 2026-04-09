@@ -1,15 +1,25 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 const AUTH_MODE = (import.meta.env.VITE_AUTH_MODE || 'auto').toLowerCase();
+const isBackendEnabled = AUTH_MODE !== 'local';
+const isStrictBackend = AUTH_MODE === 'backend';
 
 const fetchJson = async (url, options = {}) => {
-    const response = await fetch(url, {
-        credentials: 'include',
-        headers: {
-            'Content-Type': 'application/json',
-            ...(options.headers || {})
-        },
-        ...options
-    });
+    let response;
+
+    try {
+        response = await fetch(url, {
+            credentials: 'include',
+            headers: {
+                'Content-Type': 'application/json',
+                ...(options.headers || {})
+            },
+            ...options
+        });
+    } catch (error) {
+        const networkError = new Error('Erreur reseau');
+        networkError.isNetworkError = true;
+        throw networkError;
+    }
 
     let data = null;
     try {
@@ -29,8 +39,8 @@ const fetchJson = async (url, options = {}) => {
 };
 
 export const authApi = {
-    isBackendEnabled: AUTH_MODE !== 'local',
-    isStrictBackend: AUTH_MODE !== 'local',
+    isBackendEnabled,
+    isStrictBackend,
     fetchJson,
 
     getMe: () => fetchJson(`${API_BASE_URL}/auth/me`, { method: 'GET' }),

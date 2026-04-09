@@ -1076,9 +1076,14 @@ h4 {
     }
 }
 
-@media (max-width: 900px) {
-    .mobile-menu-btn {
-        display: block;
+    @media (max-width: 768px) {
+        .hero-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .hero-panel {
+            display: none; /* Cache l'aperçu rapide sur mobile si trop encombrant */
+        }
     }
 
     .nav-links {

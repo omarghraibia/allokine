@@ -7,8 +7,16 @@ import { supabaseBrowser } from '../services/supabaseBrowser';
 
 export const AuthContext = createContext();
 
+const loadStoredUser = () => {
+    try {
+        return JSON.parse(localStorage.getItem('allokine_currentUser')) || null;
+    } catch {
+        return null;
+    }
+};
+
 export function AuthProvider({ children }) {
-    const [user, setUser] = useState(JSON.parse(localStorage.getItem('allokine_currentUser')) || null);
+    const [user, setUser] = useState(loadStoredUser());
     const [errors, setErrors] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -114,7 +122,7 @@ export function AuthProvider({ children }) {
                 localStorage.setItem('allokine_currentUser', JSON.stringify(backendUser));
                 return { success: true, user: backendUser };
             } catch (error) {
-                if (authApi.isStrictBackend) {
+                if (authApi.isStrictBackend || !error.isNetworkError) {
                     const backendError = error.message || 'Email ou mot de passe incorrect';
                     setErrors([backendError]);
                     return { success: false, error: backendError };
@@ -173,7 +181,7 @@ export function AuthProvider({ children }) {
                 setErrors([]);
                 return { success: true, user: backendUser };
             } catch (error) {
-                if (authApi.isStrictBackend) {
+                if (authApi.isStrictBackend || !error.isNetworkError) {
                     const backendErrors = [error.message || "Erreur lors de l'inscription"];
                     setErrors(backendErrors);
                     return { success: false, errors: backendErrors };
