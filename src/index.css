@@ -1074,9 +1074,8 @@ h4 {
     .about-photo-wrap img {
         display: block;
     }
-}
 
-    @media (max-width: 768px) {
+@media (max-width: 768px) {
         .hero-grid {
             grid-template-columns: 1fr;
         }
