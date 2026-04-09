@@ -7,7 +7,7 @@ export default function About() {
 
             <section className="card mt-4 about-layout">
                 <div className="about-photo-wrap">
-                    <img src="src/assets/kine.png" alt="Dr. Fethi Ghraibia" className="kine-photo" loading="lazy" />
+                    <img src="src\assets\kine.png" alt="Dr. Fethi Ghraibia" className="kine-photo" loading="lazy" />
                 </div>
 
                 <div className="about-content">
