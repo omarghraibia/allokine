@@ -1,3 +1,5 @@
+import kinePhoto from '../assets/kine.png';
+
 export default function About() {
     return (
         <div className="container pt-top min-h-screen">
@@ -7,7 +9,7 @@ export default function About() {
 
             <section className="card mt-4 about-layout">
                 <div className="about-photo-wrap">
-                    <img src="src\assets\kine.png" alt="Dr. Fethi Ghraibia" className="kine-photo" loading="lazy" />
+                    <img src={kinePhoto} alt="Dr. Fethi Ghraibia" className="kine-photo" loading="lazy" />
                 </div>
 
                 <div className="about-content">

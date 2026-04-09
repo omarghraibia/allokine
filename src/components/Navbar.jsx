@@ -2,6 +2,7 @@ import { useContext, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { getRoleHomePath } from '../utils/roleRedirect';
+import logoImg from '../assets/logo.jpg';
 
 export default function Navbar() {
     const { user, logout } = useContext(AuthContext);
@@ -36,7 +37,7 @@ export default function Navbar() {
         <header className="navbar">
             <div className="nav-shell">
                 <Link to="/" className="logo" onClick={closeMenu}>
-                    <img src="src/assets/logo.jpg" alt="Logo AlloKine" className="nav-logo-img" />
+                    <img src={logoImg} alt="Logo AlloKine" className="nav-logo-img" />
                     <span>
                         ALLO<span className="text-blue">KINE</span>
                     </span>
