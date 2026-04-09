@@ -222,7 +222,7 @@ export default function Login() {
             <div className="card auth-card login-card">
                 <h2 className="text-center">{isRegisterMode ? 'Creer un compte patient' : 'Connexion securisee'}</h2>
 
-                {!isRegisterMode && (
+                {!isRegisterMode && hasSupabaseBrowserConfig && (
                     <div className="social-auth mt-2">
                         <button className="btn btn-social" onClick={handleGoogleLogin} type="button" disabled={isLoading}>
                             <Globe size={18} /> Continuer avec Google
@@ -230,6 +230,15 @@ export default function Login() {
                         <button className="btn btn-social" onClick={handleFacebookLogin} type="button" disabled={isLoading}>
                             <Share2 size={18} /> Continuer avec Facebook
                         </button>
+                    </div>
+                )}
+
+                {!isRegisterMode && !hasSupabaseBrowserConfig && (
+                    <div className="alert-box" style={{ marginTop: '1rem' }}>
+                        <strong>Supabase OAuth non configuré</strong>
+                        <p>
+                            Pour utiliser Google / Facebook, définissez <code>VITE_SUPABASE_URL</code> et <code>VITE_SUPABASE_ANON_KEY</code> dans votre fichier <code>.env</code>.
+                        </p>
                     </div>
                 )}
 
